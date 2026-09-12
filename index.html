@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Pedang Bayangan — Kawanan Pedang dari Gestur Tangan</title>
-<meta name="description" content="Efek partikel kawanan pedang bercahaya dengan black hole dan audio sub-bass yang dikendalikan gestur tangan lewat webcam — berjalan sepenuhnya di browser." />
+<meta name="description" content="Efek partikel kawanan pedang bercahaya dengan Black Hole 3D, suara sub-bass mewah, dan kontrol warna jempol ke bawah lewat kamera." />
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -16,50 +16,332 @@
 
 <style>
   :root {
+    --void-0: #000000;
+    --void-1: #030408;
+    --panel: rgba(5, 7, 18, 0.68);
+    --panel-strong: rgba(4, 6, 15, 0.88);
+    --edge: rgba(255, 255, 255, 0.12);
+    --text-0: #f1f5f9;
+    --text-1: #94a3b8;
+
+    /* Tema aktif */
     --accent-a: #00f0ff;
     --accent-b: #7000ff;
-    --bg: #000000;
+
+    --font-display: "Cinzel", "Georgia", serif;
+    --font-ui: "Space Grotesk", "Segoe UI", sans-serif;
   }
+
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; color: #fff; font-family: 'Space Grotesk', sans-serif; }
-  canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: 1; }
-  video#input-video { display: none !important; }
 
-  .hud { position: fixed; inset: 0; z-index: 10; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: clamp(14px, 2.5vw, 24px); }
-  .hud > * { pointer-events: auto; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    background: #000000;
+    color: var(--text-0);
+    font-family: var(--font-ui);
+    overflow: hidden;
+  }
 
-  .hud__top { display: flex; justify-content: space-between; align-items: center; }
-  .brand { display: flex; align-items: center; gap: 8px; }
-  .brand__glyph { font-size: 22px; color: var(--accent-a); text-shadow: 0 0 14px var(--accent-a); }
-  .brand__title { font-family: 'Cinzel', serif; font-size: clamp(16px, 2vw, 22px); font-weight: 700; letter-spacing: 0.06em; color: #fff; }
+  #input-video {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+    display: none !important;
+  }
 
-  .top-actions { display: flex; align-items: center; gap: 8px; }
-  .icon-btn { background: rgba(0,0,0,0.85); border: 1px solid rgba(255,255,255,0.15); color: #fff; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; backdrop-filter: blur(10px); transition: all 0.2s; }
-  .icon-btn:hover { border-color: var(--accent-a); color: var(--accent-a); }
+  #scene {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    z-index: 1;
+  }
 
-  .color-hud { position: fixed; top: 16px; left: 50%; transform: translateX(-50%) translateY(-20px); z-index: 20; background: rgba(0,0,0,0.92); border: 1px solid var(--accent-a); padding: 10px 18px; border-radius: 20px; opacity: 0; pointer-events: none; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; align-items: center; gap: 8px; backdrop-filter: blur(16px); box-shadow: 0 0 25px rgba(0,240,255,0.3); }
-  .color-hud.active { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
-  .color-hud__title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent-a); font-weight: 600; }
-  .color-hud__swatches { display: flex; gap: 10px; }
-  .color-hud__swatch { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform 0.2s; }
-  .color-hud__swatch.selected { border-color: #fff; transform: scale(1.25); box-shadow: 0 0 10px #fff; }
-  .color-hud__bar { width: 140px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; overflow: hidden; }
-  .color-hud__fill { height: 100%; background: var(--accent-a); width: 0%; transition: width 0.08s; }
+  /* HUD */
+  .hud {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: clamp(14px, 3vw, 26px);
+    pointer-events: none;
+  }
 
-  .start-hint { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 12; background: rgba(0,0,0,0.85); border: 1px solid rgba(0,240,255,0.3); padding: 16px 20px; border-radius: 16px; text-align: center; max-width: 320px; box-shadow: 0 0 30px rgba(0, 0, 0, 0.8); transition: opacity 0.4s; }
-  .start-hint b { display: block; font-family: 'Cinzel', serif; font-size: 16px; margin-bottom: 4px; color: var(--accent-a); }
-  .start-hint p { font-size: 12px; color: rgba(255, 255, 255, 0.7); line-height: 1.4; }
+  .hud__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
 
-  .hud__bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
-  .status-pill { display: flex; align-items: center; gap: 8px; background: rgba(0, 0, 0, 0.88); border: 1px solid rgba(255,255,255,0.12); padding: 7px 14px; border-radius: 30px; backdrop-filter: blur(12px); }
-  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-a); box-shadow: 0 0 8px var(--accent-a); animation: blinkDot 1.6s infinite; }
-  .status-text { font-size: 12px; font-weight: 500; color: #fff; }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    pointer-events: auto;
+  }
 
-  .theme-swatches { display: flex; gap: 6px; background: rgba(0, 0, 0, 0.88); border: 1px solid rgba(255,255,255,0.12); padding: 5px 10px; border-radius: 30px; }
-  .swatch { width: 20px; height: 20px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform 0.2s; }
-  .swatch.active { border-color: #fff; transform: scale(1.18); box-shadow: 0 0 8px #fff; }
+  .brand__glyph {
+    font-size: 1.3rem;
+    color: var(--accent-a);
+    filter: drop-shadow(0 0 10px var(--accent-a));
+    transition: color 0.3s;
+  }
 
-  @keyframes blinkDot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.3; transform: scale(0.8); } }
+  .brand__title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(1.1rem, 2.4vw, 1.45rem);
+    letter-spacing: 0.04em;
+    color: var(--text-0);
+    margin: 0;
+  }
+
+  .top-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    pointer-events: auto;
+  }
+
+  .btn-forged {
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    color: var(--text-0);
+    background: var(--panel-strong);
+    border: 1px solid var(--edge);
+    border-top: 2px solid var(--accent-a);
+    clip-path: polygon(8px 0, 100% 0, 100% 100%, 8px 100%, 0 calc(100% - 8px), 0 8px);
+    padding: 7px 14px;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-forged:hover {
+    background: rgba(18, 24, 45, 0.95);
+    border-color: var(--accent-a);
+  }
+
+  /* COLOR HUD POPUP SAAT JEMPOL KE BAWAH */
+  .color-hud {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-30px);
+    z-index: 25;
+    background: var(--panel-strong);
+    border-top: 2px solid var(--accent-a);
+    border-bottom: 1px solid var(--accent-b);
+    clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+    padding: 10px 18px;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    backdrop-filter: blur(14px);
+    box-shadow: 0 0 25px rgba(0, 0, 0, 0.85);
+  }
+  .color-hud.active {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(-50%) translateY(0);
+  }
+  .color-hud__title {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent-a);
+    font-weight: 600;
+  }
+  .color-hud__swatches {
+    display: flex;
+    gap: 8px;
+  }
+  .color-hud__swatch {
+    width: 22px;
+    height: 22px;
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .color-hud__swatch.selected {
+    transform: scale(1.3);
+    outline: 2px solid #fff;
+  }
+  .color-hud__bar {
+    width: 140px;
+    height: 3px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .color-hud__fill {
+    height: 100%;
+    background: var(--accent-a);
+    width: 0%;
+    transition: width 0.08s;
+  }
+
+  /* START HINT */
+  .start-hint {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+    color: var(--text-1);
+    font-size: 0.82rem;
+    max-width: 300px;
+    line-height: 1.5;
+    background: var(--panel-strong);
+    border-left: 2px solid var(--accent-a);
+    clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+    padding: 16px 20px;
+    backdrop-filter: blur(12px);
+    transition: opacity 0.5s ease;
+    z-index: 15;
+  }
+  .start-hint b {
+    color: var(--text-0);
+    display: block;
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    margin-bottom: 6px;
+  }
+  .start-hint.is-hidden { opacity: 0; }
+
+  /* BOTTOM */
+  .hud__bottom {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    pointer-events: auto;
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--panel);
+    border-left: 2px solid var(--accent-a);
+    clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+    padding: 9px 16px;
+    backdrop-filter: blur(10px);
+    min-width: 220px;
+  }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #475569;
+    flex-shrink: 0;
+    transition: background 0.25s, box-shadow 0.25s;
+  }
+  .status-dot.live {
+    background: var(--accent-a);
+    box-shadow: 0 0 10px var(--accent-a);
+  }
+  .status-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .status-text__state {
+    font-size: 0.65rem;
+    color: var(--text-1);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .status-text__gesture {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-0);
+  }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .theme-row {
+    display: flex;
+    gap: 6px;
+    background: var(--panel);
+    padding: 6px 9px;
+    border-left: 2px solid var(--accent-b);
+    clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
+    backdrop-filter: blur(10px);
+  }
+
+  .theme-swatch {
+    width: 20px;
+    height: 20px;
+    border: none;
+    cursor: pointer;
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    opacity: 0.6;
+    transition: opacity 0.2s, transform 0.2s;
+  }
+  .theme-swatch:hover { opacity: 0.95; transform: scale(1.12); }
+  .theme-swatch.active {
+    opacity: 1;
+    transform: scale(1.15);
+    outline: 1px solid rgba(255,255,255,0.7);
+  }
+
+  /* LEGENDA GESTUR */
+  .legend {
+    position: absolute;
+    right: clamp(14px, 3vw, 26px);
+    bottom: 74px;
+    width: min(300px, 85vw);
+    background: var(--panel-strong);
+    border-left: 2px solid var(--accent-b);
+    clip-path: polygon(12px 0, 100% 0, 100% 100%, 0 100%, 0 12px);
+    backdrop-filter: blur(14px);
+    padding: 14px 18px;
+    z-index: 30;
+  }
+  .legend[hidden] { display: none; }
+  .legend h2 {
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    margin: 0 0 10px;
+    color: var(--text-0);
+  }
+  .legend ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .legend li {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 0.76rem;
+    color: var(--text-1);
+    line-height: 1.35;
+  }
+  .legend li span.sym { font-size: 0.95rem; width: 20px; flex-shrink: 0; }
+  .legend li b { color: var(--text-0); }
 </style>
 </head>
 <body>
@@ -67,17 +349,20 @@
   <video id="input-video" playsinline muted></video>
   <canvas id="scene"></canvas>
 
+  <!-- Color Selector HUD (Jempol ke bawah) -->
   <div class="color-hud" id="color-hud">
     <span class="color-hud__title">👎 Jempol Bawah: Geser Pilih Warna</span>
     <div class="color-hud__swatches" id="hud-swatches"></div>
     <div class="color-hud__bar"><div class="color-hud__fill" id="hud-fill"></div></div>
   </div>
 
+  <!-- Start Hint -->
   <div class="start-hint" id="start-hint">
     <b>Arahkan Tangan ke Kamera</b>
     <p>👍 Jempol atas: Angkasa • 👎 Jempol bawah: Warna • ✌️ V • 🤘 Rock • ✊ Kepalan</p>
   </div>
 
+  <!-- Main HUD -->
   <div class="hud">
     <div class="hud__top">
       <div class="brand">
@@ -85,36 +370,61 @@
         <h1 class="brand__title">Pedang Bayangan</h1>
       </div>
       <div class="top-actions">
-        <button class="icon-btn" id="btn-audio" title="Suara Sub-Bass">🔊</button>
-        <button class="icon-btn" id="btn-flip" title="Ganti Kamera">🔄</button>
-        <button class="icon-btn" id="btn-fs" title="Layar Penuh">⛶</button>
+        <button class="btn-forged" id="btn-audio" title="Suara Sub-Bass">🔊 Bass On</button>
+        <button class="btn-forged" id="btn-flip" title="Ganti Kamera Depan/Belakang">🔄 Kamera</button>
+        <button class="btn-forged" id="btn-fs" title="Layar Penuh">⛶</button>
       </div>
+    </div>
+
+    <!-- Panel Legenda Gestur -->
+    <div class="legend" id="legend" hidden>
+      <h2>Daftar Gestur Pedang</h2>
+      <ul>
+        <li><span class="sym">👎</span><span><b>Jempol Bawah:</b> Geser tangan untuk ganti warna bilah pedang.</span></li>
+        <li><span class="sym">👍</span><span><b>Jempol Atas:</b> Angkasa kosmis, pedang membesar & warp speed.</span></li>
+        <li><span class="sym">✌️</span><span><b>Tanda V:</b> Hujan pedang berbaris rapi dari portal.</span></li>
+        <li><span class="sym">🤘</span><span><b>Tanda Rock:</b> Bola anyaman pedang 3D berputar.</span></li>
+        <li><span class="sym">✊</span><span><b>Kepalan:</b> Singularitas portal padat & sub-bass drop.</span></li>
+        <li><span class="sym">🖐️</span><span><b>Telapak Terbuka:</b> Ledakan cincin cahaya meluas.</span></li>
+        <li><span class="sym">👋</span><span><b>Gerakan Biasa:</b> Kawanan mengalir lincah mengikuti tangan.</span></li>
+      </ul>
     </div>
 
     <div class="hud__bottom">
       <div class="status-pill">
         <div class="status-dot" id="status-dot"></div>
-        <span class="status-text" id="status-text">Mencari tangan...</span>
+        <div class="status-text">
+          <span class="status-text__state" id="status-state">Mencari tangan…</span>
+          <span class="status-text__gesture" id="status-gesture">Arahkan tangan ke kamera</span>
+        </div>
       </div>
-      <div class="theme-swatches" id="theme-swatches"></div>
+
+      <div class="controls">
+        <div class="theme-row" id="theme-row"></div>
+        <button class="btn-forged" id="legend-toggle" title="Petunjuk Gestur">?</button>
+      </div>
     </div>
   </div>
 
 <script>
-// ==================== PALET WARNA ====================
-const PALETTES = [
-  { name: 'Aether Cyan', primary: '#00f0ff', secondary: '#7000ff' },
-  { name: 'Ember Crimson', primary: '#ff3344', secondary: '#ffaa00' },
-  { name: 'Verdant Jade', primary: '#00ffaa', secondary: '#0066ff' },
-  { name: 'Frost Azure', primary: '#70b5ff', secondary: '#ffffff' },
-  { name: 'Solar Gold', primary: '#ffcc00', secondary: '#ff4400' },
-  { name: 'Astral Void', primary: '#c050ff', secondary: '#ff00aa' }
-];
-let currentPaletteIdx = 0;
+/* =========================================================================
+   Pedang Bayangan — Engine Partikel 3D, Black Hole, Web Audio & MediaPipe
+   ========================================================================= */
 
-// ==================== WEB AUDIO SUB-BASS SYNTHESIZER ====================
+// 1. TEMA WARNA
+const THEMES = [
+  { id: 'aether', name: 'Aether', a: '#00f0ff', b: '#7000ff' },
+  { id: 'ember', name: 'Ember', a: '#ff3344', b: '#ffaa00' },
+  { id: 'verdant', name: 'Verdant', a: '#00ffaa', b: '#0066ff' },
+  { id: 'frost', name: 'Frost', a: '#70b5ff', b: '#ffffff' },
+  { id: 'solar', name: 'Solar', a: '#ffcc00', b: '#ff4400' },
+  { id: 'astral', name: 'Astral Void', a: '#c050ff', b: '#ff00aa' }
+];
+let currentThemeIdx = 0;
+
+// 2. WEB AUDIO SUB-BASS SYNTHESIZER
 let audioCtx = null;
-let isAudioMuted = false;
+let isMuted = false;
 let subOsc = null, subGain = null, masterGain = null;
 
 function initAudio() {
@@ -123,13 +433,14 @@ function initAudio() {
     return;
   }
   try {
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    audioCtx = new AudioContextClass();
+    const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+    audioCtx = new AudioCtxClass();
 
     masterGain = audioCtx.createGain();
     masterGain.gain.setValueAtTime(0.7, audioCtx.currentTime);
     masterGain.connect(audioCtx.destination);
 
+    // Sub-bass drone (43.65 Hz)
     subGain = audioCtx.createGain();
     subGain.gain.setValueAtTime(0.18, audioCtx.currentTime);
 
@@ -148,7 +459,7 @@ function initAudio() {
 }
 
 function playSubDrop() {
-  if (!audioCtx || isAudioMuted) return;
+  if (!audioCtx || isMuted) return;
   try {
     const now = audioCtx.currentTime;
     const osc = audioCtx.createOscillator();
@@ -156,7 +467,7 @@ function playSubDrop() {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(120, now);
     osc.frequency.exponentialRampToValueAtTime(32, now + 0.8);
-    g.gain.setValueAtTime(0.8, now);
+    g.gain.setValueAtTime(0.85, now);
     g.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
     osc.connect(g);
     g.connect(masterGain);
@@ -165,14 +476,14 @@ function playSubDrop() {
   } catch (e) {}
 }
 
-function playWhoosh(spd) {
-  if (!audioCtx || isAudioMuted) return;
+function playBladeWhoosh(spd) {
+  if (!audioCtx || isMuted) return;
   try {
     const now = audioCtx.currentTime;
     const dur = 0.22;
     const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * dur, audioCtx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     const src = audioCtx.createBufferSource();
     src.buffer = buf;
     const fil = audioCtx.createBiquadFilter();
@@ -190,7 +501,7 @@ function playWhoosh(spd) {
 }
 
 function playChime(idx) {
-  if (!audioCtx || isAudioMuted) return;
+  if (!audioCtx || isMuted) return;
   try {
     const now = audioCtx.currentTime;
     const notes = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
@@ -212,42 +523,14 @@ document.addEventListener('touchstart', initAudio, { once: true });
 
 document.getElementById('btn-audio').addEventListener('click', () => {
   initAudio();
-  isAudioMuted = !isAudioMuted;
+  isMuted = !isMuted;
   if (masterGain && audioCtx) {
-    masterGain.gain.setValueAtTime(isAudioMuted ? 0 : 0.7, audioCtx.currentTime);
+    masterGain.gain.setValueAtTime(isMuted ? 0 : 0.7, audioCtx.currentTime);
   }
-  document.getElementById('btn-audio').textContent = isAudioMuted ? '🔇' : '🔊';
+  document.getElementById('btn-audio').textContent = isMuted ? '🔇 Muted' : '🔊 Bass On';
 });
 
-// ==================== PROCEDURAL SWORD TEXTURE ====================
-function createSwordTexture() {
-  const s = 128;
-  const c = document.createElement('canvas');
-  c.width = s; c.height = s;
-  const ctx = c.getContext('2d');
-  ctx.translate(s/2, s/2);
-
-  const grad = ctx.createLinearGradient(0, -s * 0.47, 0, s * 0.3);
-  grad.addColorStop(0, 'rgba(255,255,255,1)');
-  grad.addColorStop(0.55, 'rgba(255,255,255,0.95)');
-  grad.addColorStop(1, 'rgba(255,255,255,0.1)');
-  ctx.fillStyle = grad;
-  ctx.beginPath();
-  ctx.moveTo(0, -s * 0.47);
-  ctx.lineTo(s * 0.065, -s * 0.02);
-  ctx.lineTo(s * 0.028, s * 0.26);
-  ctx.lineTo(-s * 0.028, s * 0.26);
-  ctx.lineTo(-s * 0.065, -s * 0.02);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.fillStyle = 'rgba(255,255,255,0.95)';
-  ctx.fillRect(-s * 0.15, s * 0.22, s * 0.30, s * 0.032);
-  ctx.fillRect(-s * 0.018, s * 0.25, s * 0.036, s * 0.14);
-  return new THREE.CanvasTexture(c);
-}
-
-// ==================== THREE.JS SETUP ====================
+// 3. THREE.JS SETUP & BLACK HOLE
 const canvas = document.getElementById('scene');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -261,27 +544,32 @@ scene.background = new THREE.Color(0x000000);
 const camera = new THREE.PerspectiveCamera(window.innerWidth < window.innerHeight ? 68 : 50, window.innerWidth / window.innerHeight, 0.1, 200);
 camera.position.set(0, 0, 9.2);
 
-let viewH = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * camera.position.z;
-let viewW = viewH * camera.aspect;
+let VIEW_W = 8, VIEW_H = 6;
+function updateViewBounds() {
+  const vFOV = THREE.MathUtils.degToRad(camera.fov);
+  VIEW_H = 2 * Math.tan(vFOV / 2) * camera.position.z;
+  VIEW_W = VIEW_H * camera.aspect;
+}
+updateViewBounds();
 
+// Motion-blur fade pass
 const fadeScene = new THREE.Scene();
 const fadeCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-const fadeMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2, depthTest: false, depthWrite: false });
-fadeScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), fadeMat));
+fadeScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2, depthTest: false, depthWrite: false })));
 
-// ==================== 3D BLACK HOLE ====================
+// BLACK HOLE 3D
 const blackHole = new THREE.Group();
 blackHole.position.set(0, 0.2, -5.5);
 
-const ehGeo = new THREE.SphereGeometry(1.35, 48, 48);
-const ehMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-blackHole.add(new THREE.Mesh(ehGeo, ehMat));
+// Event Horizon
+blackHole.add(new THREE.Mesh(new THREE.SphereGeometry(1.35, 48, 48), new THREE.MeshBasicMaterial({ color: 0x000000 })));
 
-const prGeo = new THREE.RingGeometry(1.36, 1.52, 80);
-const prMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(PALETTES[0].primary), side: THREE.DoubleSide, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
-const photonRing = new THREE.Mesh(prGeo, prMat);
+// Photon Ring
+const prMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(THEMES[0].a), side: THREE.DoubleSide, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
+const photonRing = new THREE.Mesh(new THREE.RingGeometry(1.36, 1.52, 80), prMat);
 blackHole.add(photonRing);
 
+// Accretion Disk
 const ACCRETION_N = 650;
 const accGeo = new THREE.BufferGeometry();
 const accPos = new Float32Array(ACCRETION_N * 3);
@@ -306,8 +594,8 @@ accDisk.rotation.z = Math.PI * 0.08;
 blackHole.add(accDisk);
 scene.add(blackHole);
 
-// ==================== BINTANG BERJALAN ====================
-const STAR_COUNT = 700;
+// BINTANG BERJALAN
+const STAR_COUNT = 750;
 const starGeo = new THREE.BufferGeometry();
 const starPos = new Float32Array(STAR_COUNT * 3);
 const starSpeeds = new Float32Array(STAR_COUNT);
@@ -321,9 +609,38 @@ starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
 const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xc8d6ff, size: 0.065, transparent: true, opacity: 0.7, sizeAttenuation: true, blending: THREE.AdditiveBlending, depthWrite: false }));
 scene.add(stars);
 
-// ==================== SWORD PARTICLES ====================
+// 4. TEKSTUR PEDANG & PARTIKEL
+function createSwordTexture() {
+  const s = 128;
+  const c = document.createElement('canvas');
+  c.width = c.height = s;
+  const ctx = c.getContext('2d');
+  ctx.translate(s/2, s/2);
+
+  const grad = ctx.createLinearGradient(0, -s * 0.47, 0, s * 0.3);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.55, 'rgba(255,255,255,0.95)');
+  grad.addColorStop(1, 'rgba(255,255,255,0.1)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(0, -s * 0.47);
+  ctx.lineTo(s * 0.065, -s * 0.02);
+  ctx.lineTo(s * 0.028, s * 0.26);
+  ctx.lineTo(-s * 0.028, s * 0.26);
+  ctx.lineTo(-s * 0.065, -s * 0.02);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  ctx.fillRect(-s * 0.15, s * 0.22, s * 0.30, s * 0.032);
+  ctx.fillRect(-s * 0.018, s * 0.25, s * 0.036, s * 0.14);
+  return new THREE.CanvasTexture(c);
+}
+
 const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent) || window.innerWidth < 768;
 const PARTICLE_COUNT = isMobile ? 750 : 1250;
+const GRID_COLS = 25;
+const GRID_ROWS = Math.max(2, Math.ceil(PARTICLE_COUNT / GRID_COLS));
 const swordTexture = createSwordTexture();
 
 const particleMaterial = new THREE.ShaderMaterial({
@@ -386,7 +703,7 @@ pGeo.setAttribute('aSize', new THREE.BufferAttribute(sizesAttr, 1));
 const swarm = new THREE.Points(pGeo, particleMaterial);
 scene.add(swarm);
 
-// ==================== NEON SKELETON ====================
+// 5. KERANGKA TANGAN NEON & CINCIN PORTAL
 const HAND_CONNECTIONS = [
   [0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],
   [9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]
@@ -397,8 +714,17 @@ const skeleton = new THREE.LineSegments(lineGeo, new THREE.LineBasicMaterial({ c
 skeleton.visible = false;
 scene.add(skeleton);
 
-// ==================== MEDIAPIPE TRACKING ====================
+const ringMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(THEMES[0].b), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
+const ring = new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.035, 16, 80), ringMat);
+scene.add(ring);
+
+// 6. PELACAKAN TANGAN & DETEKSI GESTUR
 const video = document.getElementById('input-video');
+const startHint = document.getElementById('start-hint');
+const statusDot = document.getElementById('status-dot');
+const statusState = document.getElementById('status-state');
+const statusGesture = document.getElementById('status-gesture');
+
 let activeGesture = 'none';
 let isColorPickerOpen = false;
 let colorSlideProgress = 0;
@@ -416,24 +742,26 @@ function isExt(tip, pip, wrist) {
 }
 
 function onResults(results) {
-  const startHint = document.getElementById('start-hint');
-  const statusText = document.getElementById('status-text');
-
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-    if (startHint) startHint.style.opacity = '0';
+    if (startHint) startHint.classList.add('is-hidden');
+    statusDot.classList.add('live');
+    statusState.textContent = 'Tangan Terdeteksi';
+
     const lm = results.multiHandLandmarks[0];
     currentLandmarks = lm;
     skeleton.visible = true;
 
+    // Hitung momentum kecepatan tangan untuk suara whoosh & lemparan pedang
     const curPos = { x: lm[0].x, y: lm[0].y };
     if (lastHandPos) {
       handVelocity.x = (curPos.x - lastHandPos.x) * 20;
       handVelocity.y = (curPos.y - lastHandPos.y) * 20;
       const spd = Math.hypot(handVelocity.x, handVelocity.y);
-      if (spd > 0.4) playWhoosh(spd);
+      if (spd > 0.38) playBladeWhoosh(spd);
     }
     lastHandPos = curPos;
 
+    // Analisis Gestur
     const wrist = lm[0];
     const thumbTip = lm[4], thumbIp = lm[3], thumbMcp = lm[2];
     const indexTip = lm[8], indexPip = lm[6];
@@ -451,42 +779,56 @@ function onResults(results) {
     const thumbUp = thumbTip.y < thumbIp.y - 0.02 && thumbIp.y < thumbMcp.y;
     const thumbDown = thumbTip.y > thumbIp.y + 0.02 && thumbIp.y > thumbMcp.y - 0.05;
 
+    // GESTUR 1: JEMPOL KE BAWAH (PILIH WARNA & SLIDE)
     if (thumbDown && otherCurled && thumbExt) {
       activeGesture = 'thumbs_down';
       isColorPickerOpen = true;
       colorSlideProgress = Math.max(0, Math.min(1, (1.0 - wrist.x - 0.15) / 0.70));
-      const targetIdx = Math.min(PALETTES.length - 1, Math.floor(colorSlideProgress * PALETTES.length));
-      if (targetIdx !== currentPaletteIdx) {
-        selectPalette(targetIdx);
+      const targetIdx = Math.min(THEMES.length - 1, Math.floor(colorSlideProgress * THEMES.length));
+      if (targetIdx !== currentThemeIdx) {
+        selectTheme(targetIdx);
         playChime(targetIdx);
       }
-      statusText.textContent = 'Jempol Bawah: Geser Pilih Warna';
-    } else if (thumbUp && otherCurled && thumbExt) {
+      statusGesture.textContent = 'Jempol Bawah — Geser Pilih Warna';
+    }
+    // GESTUR 2: JEMPOL KE ATAS (ANGKASA & SUPERNOVA)
+    else if (thumbUp && otherCurled && thumbExt) {
       if (!isCosmicMode) playSubDrop();
       activeGesture = 'thumbs_up';
       isCosmicMode = true;
-      statusText.textContent = 'Jempol Atas: Angkasa & Supernova';
-    } else if (indexExt && midExt && !ringExt && !pinkyExt) {
+      statusGesture.textContent = 'Jempol Atas — Angkasa & Supernova';
+    }
+    // GESTUR 3: TANDA V (PEACE)
+    else if (indexExt && midExt && !ringExt && !pinkyExt) {
       activeGesture = 'peace';
-      statusText.textContent = 'Tanda V: Hujan Pedang';
-    } else if (indexExt && !midExt && !ringExt && pinkyExt) {
+      statusGesture.textContent = 'Tanda V — Hujan Pedang';
+    }
+    // GESTUR 4: TANDA ROCK
+    else if (indexExt && !midExt && !ringExt && pinkyExt) {
       activeGesture = 'rock';
-      statusText.textContent = 'Tanda Rock: Bola Anyaman';
-    } else if (!indexExt && !midExt && !ringExt && !pinkyExt) {
+      statusGesture.textContent = 'Tanda Rock — Bola Anyaman';
+    }
+    // GESTUR 5: KEPALAN TANGAN
+    else if (!indexExt && !midExt && !ringExt && !pinkyExt) {
       if (isCosmicMode) playSubDrop();
       activeGesture = 'fist';
       isCosmicMode = false;
       isColorPickerOpen = false;
-      statusText.textContent = 'Kepalan: Singularitas Portal';
-    } else if (indexExt && midExt && ringExt && pinkyExt) {
+      statusGesture.textContent = 'Kepalan — Singularitas Portal';
+    }
+    // GESTUR 6: TELAPAK TERBUKA
+    else if (indexExt && midExt && ringExt && pinkyExt) {
       activeGesture = 'open_palm';
       isColorPickerOpen = false;
-      statusText.textContent = 'Telapak Terbuka: Ledakan Cincin';
-    } else {
+      statusGesture.textContent = 'Telapak Terbuka — Ledakan Cincin';
+    }
+    // DEFAULT: KAWANAN MENGALIR
+    else {
       activeGesture = 'flow';
-      statusText.textContent = 'Kawanan Mengalir Mengikuti Tangan';
+      statusGesture.textContent = 'Kawanan Mengalir';
     }
 
+    // Update UI HUD Pilihan Warna
     const colorHud = document.getElementById('color-hud');
     const hudFill = document.getElementById('hud-fill');
     if (isColorPickerOpen) {
@@ -499,13 +841,15 @@ function onResults(results) {
   } else {
     currentLandmarks = null;
     skeleton.visible = false;
-    statusText.textContent = 'Mencari tangan...';
-    if (startHint) startHint.style.opacity = '1';
+    statusDot.classList.remove('live');
+    statusState.textContent = 'Mencari tangan…';
+    statusGesture.textContent = 'Arahkan tangan ke kamera';
+    if (startHint) startHint.classList.remove('is-hidden');
   }
 }
 
 const hands = new Hands({
-  locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+  locateFile: (file) => 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/' + file
 });
 hands.setOptions({
   maxNumHands: 1,
@@ -529,24 +873,33 @@ function startCamera() {
 }
 startCamera();
 
+// Flip kamera (depan / belakang)
 document.getElementById('btn-flip').addEventListener('click', () => {
   facingMode = facingMode === 'user' ? 'environment' : 'user';
   startCamera();
 });
 
+// Layar penuh
 document.getElementById('btn-fs').addEventListener('click', () => {
   if (!document.fullscreenElement) document.documentElement.requestFullscreen();
   else document.exitFullscreen();
 });
 
-// ==================== PALETTE SELECTION ====================
-function selectPalette(idx) {
-  currentPaletteIdx = idx;
-  const p = PALETTES[idx];
-  document.documentElement.style.setProperty('--accent-a', p.primary);
-  document.documentElement.style.setProperty('--accent-b', p.secondary);
-  photonRing.material.color.set(p.primary);
-  document.querySelectorAll('.swatch').forEach((s, i) => {
+// Toggle legenda
+document.getElementById('legend-toggle').addEventListener('click', () => {
+  const leg = document.getElementById('legend');
+  leg.hidden = !leg.hidden;
+});
+
+// 7. GANTI TEMA WARNA
+function selectTheme(idx) {
+  currentThemeIdx = idx;
+  const t = THEMES[idx];
+  document.documentElement.style.setProperty('--accent-a', t.a);
+  document.documentElement.style.setProperty('--accent-b', t.b);
+  photonRing.material.color.set(t.a);
+  ringMat.color.set(t.b);
+  document.querySelectorAll('.theme-swatch').forEach((s, i) => {
     s.classList.toggle('active', i === idx);
   });
   document.querySelectorAll('.color-hud__swatch').forEach((s, i) => {
@@ -554,46 +907,49 @@ function selectPalette(idx) {
   });
 }
 
-const swatchRow = document.getElementById('theme-swatches');
+// Pasang Swatches di HUD
+const swatchRow = document.getElementById('theme-row');
 const hudSwatches = document.getElementById('hud-swatches');
-PALETTES.forEach((p, idx) => {
-  const btn = document.createElement('div');
-  btn.className = 'swatch' + (idx === 0 ? ' active' : '');
-  btn.style.backgroundColor = p.primary;
-  btn.onclick = () => { selectPalette(idx); playChime(idx); };
+THEMES.forEach((t, idx) => {
+  const btn = document.createElement('button');
+  btn.className = 'theme-swatch' + (idx === 0 ? ' active' : '');
+  btn.style.background = 'linear-gradient(135deg, ' + t.a + ', ' + t.b + ')';
+  btn.onclick = () => { selectTheme(idx); playChime(idx); };
   swatchRow.appendChild(btn);
 
-  const hBtn = document.createElement('div');
+  const hBtn = document.createElement('button');
   hBtn.className = 'color-hud__swatch' + (idx === 0 ? ' selected' : '');
-  hBtn.style.backgroundColor = p.primary;
-  hBtn.onclick = () => { selectPalette(idx); playChime(idx); };
+  hBtn.style.background = 'linear-gradient(135deg, ' + t.a + ', ' + t.b + ')';
+  hBtn.onclick = () => { selectTheme(idx); playChime(idx); };
   hudSwatches.appendChild(hBtn);
 });
 
-// ==================== ANIMATION LOOP ====================
+// 8. LOOP ANIMASI UTAMA TIGA DIMENSI
 const clock = new THREE.Clock();
 const anchorSmooth = new THREE.Vector3(0, 0.2, 0);
 const anchorRaw = new THREE.Vector3();
 const targetPos = new THREE.Vector3();
-const colorA = new THREE.Color(PALETTES[0].primary);
-const colorB = new THREE.Color(PALETTES[0].secondary);
+const colorA = new THREE.Color(THEMES[0].a);
+const colorB = new THREE.Color(THEMES[0].b);
 const tempCol = new THREE.Color();
 
 function mapToWorld(lm) {
-  return new THREE.Vector3((0.5 - lm.x) * viewW * 0.92, (0.5 - lm.y) * viewH * 0.92, -(lm.z||0) * 8);
+  return new THREE.Vector3((0.5 - lm.x) * VIEW_W * 0.92, (0.5 - lm.y) * VIEW_H * 0.92, -(lm.z||0) * 8);
 }
 
 function animate() {
   requestAnimationFrame(animate);
   const time = clock.getElapsedTime();
 
-  colorA.lerp(new THREE.Color(PALETTES[currentPaletteIdx].primary), 0.08);
-  colorB.lerp(new THREE.Color(PALETTES[currentPaletteIdx].secondary), 0.08);
+  colorA.lerp(new THREE.Color(THEMES[currentThemeIdx].a), 0.08);
+  colorB.lerp(new THREE.Color(THEMES[currentThemeIdx].b), 0.08);
 
+  // Update Titik Tangan (Anchor)
   if (currentLandmarks && currentLandmarks.length >= 21) {
     anchorRaw.copy(mapToWorld(currentLandmarks[9] || currentLandmarks[0]));
     anchorSmooth.lerp(anchorRaw, 0.2);
 
+    // Render garis kerangka neon tangan
     const lp = lineGeo.attributes.position.array;
     HAND_CONNECTIONS.forEach(([a, b], idx) => {
       const p1 = mapToWorld(currentLandmarks[a]);
@@ -607,6 +963,7 @@ function animate() {
     anchorSmooth.lerp(new THREE.Vector3(0, 0.2, 0), 0.05);
   }
 
+  // Black hole accretion disk
   const accP = accGeo.attributes.position.array;
   for (let i = 0; i < ACCRETION_N; i++) {
     accAngles[i] += accSpeeds[i] * 0.015;
@@ -617,11 +974,13 @@ function animate() {
   blackHole.rotation.y = time * 0.06;
   photonRing.scale.setScalar(1.0 + 0.025 * Math.sin(time * 3.0));
 
+  // Bintang berjalan
   const sPos = starGeo.attributes.position.array;
   const speedMul = isCosmicMode ? 5.5 : 1.0;
   for (let i = 0; i < STAR_COUNT; i++) {
     sPos[i*3+2] += starSpeeds[i] * speedMul;
     if (sPos[i*3+2] > 9.5) {
+      sPos[i*3+2] = -50 - Math.random() * 15;
       sPos[i*3+2] = -50 - Math.random() * 15;
       sPos[i*3] = (Math.random() - 0.5) * 44;
       sPos[i*3+1] = (Math.random() - 0.5) * 32;
@@ -629,6 +988,7 @@ function animate() {
   }
   starGeo.attributes.position.needsUpdate = true;
 
+  // Fisika & Formasi Kawanan Pedang
   const pPos = pGeo.attributes.position.array;
   const pCol = pGeo.attributes.aColor.array;
   const pSiz = pGeo.attributes.aSize.array;
@@ -648,8 +1008,8 @@ function animate() {
       targetPos.set(anchorSmooth.x + Math.cos(spAng) * spR, anchorSmooth.y + 0.8 + Math.sin(spAng) * spR * 0.55, anchorSmooth.z + Math.sin(time * 2 + s) * 1.6 - 1.2);
       pSiz[i] = baseSize[i] * 1.5;
     } else if (activeGesture === 'peace') {
-      const col = i % 25, row = Math.floor(i / 25);
-      targetPos.set(anchorSmooth.x + (col / 24 - 0.5) * 6, anchorSmooth.y + (row / 30) * 5 - 0.8 + Math.sin(time * 2.2 + s) * 0.15, anchorSmooth.z + Math.sin(s * 2.7) * 0.8);
+      const col = i % GRID_COLS, row = Math.floor(i / GRID_COLS);
+      targetPos.set(anchorSmooth.x + (col / (GRID_COLS - 1) - 0.5) * 6, anchorSmooth.y + (row / (GRID_ROWS - 1)) * 5 - 0.8 + Math.sin(time * 2.2 + s) * 0.15, anchorSmooth.z + Math.sin(s * 2.7) * 0.8);
       pSiz[i] = baseSize[i] * 0.9;
     } else if (activeGesture === 'rock') {
       targetPos.set(anchorSmooth.x + 1.45 * Math.sin(thetas[i]) * Math.cos(phis[i] + time * 0.65), anchorSmooth.y + 1.0 + 1.45 * Math.cos(thetas[i]), anchorSmooth.z + 1.45 * Math.sin(thetas[i]) * Math.sin(phis[i] + time * 0.65));
@@ -672,6 +1032,7 @@ function animate() {
     const ay = (targetPos.y - pPos[ix+1]) * spring;
     const az = (targetPos.z - pPos[ix+2]) * spring;
 
+    // Akselerasi tangan instan (momentum impulse)
     velocities[ix] = (velocities[ix] + ax + handVelocity.x * 0.05) * 0.85;
     velocities[ix+1] = (velocities[ix+1] + ay - handVelocity.y * 0.05) * 0.85;
     velocities[ix+2] = (velocities[ix+2] + az) * 0.85;
@@ -688,6 +1049,12 @@ function animate() {
   pGeo.attributes.aColor.needsUpdate = true;
   pGeo.attributes.aSize.needsUpdate = true;
 
+  // Cincin portal hanya saat tanda V
+  const ringTarget = activeGesture === 'peace' ? 0.85 : 0.0;
+  ringMat.opacity += (ringTarget - ringMat.opacity) * 0.08;
+  ring.position.set(anchorSmooth.x, anchorSmooth.y + 2.6, anchorSmooth.z - 0.3);
+  ring.rotation.z += 0.01;
+
   renderer.clearDepth();
   renderer.render(fadeScene, fadeCamera);
   renderer.render(scene, camera);
@@ -698,8 +1065,7 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.fov = window.innerWidth < window.innerHeight ? 68 : 50;
   camera.updateProjectionMatrix();
-  viewH = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * camera.position.z;
-  viewW = viewH * camera.aspect;
+  updateViewBounds();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 </script>
