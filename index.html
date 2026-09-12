@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Pedang Bayangan — Kawanan Pedang dari Gestur Tangan</title>
+<meta name="description" content="Efek partikel kawanan pedang bercahaya yang dikendalikan gestur tangan lewat webcam, tanpa menampilkan wajah — berjalan sepenuhnya di browser." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Sumber gambar untuk model pelacakan tangan.
+       Elemen ini SENGAJA tidak pernah ditampilkan (lihat style.css) —
+       hanya koordinat titik tangan yang diambil, bukan gambar wajah/badan. -->
+  <video id="input-video" playsinline muted></video>
+
+  <canvas id="scene"></canvas>
+
+  <div class="hud">
+    <div class="hud__top">
+      <div class="brand">
+        <span class="brand__glyph">⟡</span>
+        <div>
+          <p class="brand__title">Pedang Bayangan</p>
+          <p class="brand__subtitle">kawanan pedang mengikuti gestur tanganmu</p>
+        </div>
+      </div>
+      <p class="privacy-note">
+        Kamera diproses 100% di perangkatmu. Tidak ada video atau wajah yang direkam, disimpan, atau dikirim ke server mana pun — hanya posisi titik tangan yang dipakai.
+      </p>
+    </div>
+
+    <div id="start-hint" class="start-hint">
+      <b>Bangkitkan kawanan pedang</b>
+      Tekan &ldquo;Mulai kamera&rdquo;, lalu angkat satu tangan di depan webcam. Buka telapak, kepalkan, atau buat tanda V untuk mengubah bentuk kawanan.
+    </div>
+
+    <div class="hud__bottom">
+      <div class="status-pill">
+        <span id="status-dot" class="status-dot"></span>
+        <div class="status-text">
+          <span id="status-state" class="status-text__state">Kamera belum aktif</span>
+          <span id="status-gesture" class="status-text__gesture">Menunggu&hellip;</span>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="theme-row" id="theme-row" role="group" aria-label="Pilih warna bilah"></div>
+        <button id="legend-toggle" class="btn btn--icon" type="button" aria-label="Tampilkan panduan gestur">?</button>
+        <button id="camera-toggle" class="btn" type="button">Mulai kamera</button>
+      </div>
+    </div>
+
+    <aside id="legend" class="legend" hidden>
+      <h2>Panduan gestur</h2>
+      <ul>
+        <li><span class="sym">🖐️</span><span><b>Telapak terbuka</b> — ledakan cincin cahaya</span></li>
+        <li><span class="sym">✊</span><span><b>Kepalan tangan</b> — pusaran portal berputar</span></li>
+        <li><span class="sym">🤘</span><span><b>Tanda rock</b> (telunjuk + kelingking) — bola pedang anyaman</span></li>
+        <li><span class="sym">✌️</span><span><b>Tanda V / peace</b> — hujan pedang bercahaya</span></li>
+        <li><span class="sym">👋</span><span><b>Gestur lain</b> — kawanan pedang mengalir mengikuti tangan</span></li>
+      </ul>
+    </aside>
+  </div>
+
+  <!-- Three.js untuk render partikel & kerangka tangan -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+
+  <!-- MediaPipe Hands untuk pelacakan tangan (berjalan di browser, WASM) -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+  <script src="app.js"></script>
+</body>
+</html>
