@@ -1,312 +1,707 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Celestial Sword Hand Gesture</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-  <style>
-    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #030712; font-family: monospace; }
-    canvas { display: block; }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Pedang Bayangan — Kawanan Pedang dari Gestur Tangan</title>
+<meta name="description" content="Efek partikel kawanan pedang bercahaya dengan black hole dan audio sub-bass yang dikendalikan gestur tangan lewat webcam — berjalan sepenuhnya di browser." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+<style>
+  :root {
+    --accent-a: #00f0ff;
+    --accent-b: #7000ff;
+    --bg: #000000;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; color: #fff; font-family: 'Space Grotesk', sans-serif; }
+  canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: 1; }
+  video#input-video { display: none !important; }
+
+  .hud { position: fixed; inset: 0; z-index: 10; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: clamp(14px, 2.5vw, 24px); }
+  .hud > * { pointer-events: auto; }
+
+  .hud__top { display: flex; justify-content: space-between; align-items: center; }
+  .brand { display: flex; align-items: center; gap: 8px; }
+  .brand__glyph { font-size: 22px; color: var(--accent-a); text-shadow: 0 0 14px var(--accent-a); }
+  .brand__title { font-family: 'Cinzel', serif; font-size: clamp(16px, 2vw, 22px); font-weight: 700; letter-spacing: 0.06em; color: #fff; }
+
+  .top-actions { display: flex; align-items: center; gap: 8px; }
+  .icon-btn { background: rgba(0,0,0,0.85); border: 1px solid rgba(255,255,255,0.15); color: #fff; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; backdrop-filter: blur(10px); transition: all 0.2s; }
+  .icon-btn:hover { border-color: var(--accent-a); color: var(--accent-a); }
+
+  .color-hud { position: fixed; top: 16px; left: 50%; transform: translateX(-50%) translateY(-20px); z-index: 20; background: rgba(0,0,0,0.92); border: 1px solid var(--accent-a); padding: 10px 18px; border-radius: 20px; opacity: 0; pointer-events: none; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; align-items: center; gap: 8px; backdrop-filter: blur(16px); box-shadow: 0 0 25px rgba(0,240,255,0.3); }
+  .color-hud.active { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
+  .color-hud__title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent-a); font-weight: 600; }
+  .color-hud__swatches { display: flex; gap: 10px; }
+  .color-hud__swatch { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform 0.2s; }
+  .color-hud__swatch.selected { border-color: #fff; transform: scale(1.25); box-shadow: 0 0 10px #fff; }
+  .color-hud__bar { width: 140px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; overflow: hidden; }
+  .color-hud__fill { height: 100%; background: var(--accent-a); width: 0%; transition: width 0.08s; }
+
+  .start-hint { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 12; background: rgba(0,0,0,0.85); border: 1px solid rgba(0,240,255,0.3); padding: 16px 20px; border-radius: 16px; text-align: center; max-width: 320px; box-shadow: 0 0 30px rgba(0, 0, 0, 0.8); transition: opacity 0.4s; }
+  .start-hint b { display: block; font-family: 'Cinzel', serif; font-size: 16px; margin-bottom: 4px; color: var(--accent-a); }
+  .start-hint p { font-size: 12px; color: rgba(255, 255, 255, 0.7); line-height: 1.4; }
+
+  .hud__bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+  .status-pill { display: flex; align-items: center; gap: 8px; background: rgba(0, 0, 0, 0.88); border: 1px solid rgba(255,255,255,0.12); padding: 7px 14px; border-radius: 30px; backdrop-filter: blur(12px); }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-a); box-shadow: 0 0 8px var(--accent-a); animation: blinkDot 1.6s infinite; }
+  .status-text { font-size: 12px; font-weight: 500; color: #fff; }
+
+  .theme-swatches { display: flex; gap: 6px; background: rgba(0, 0, 0, 0.88); border: 1px solid rgba(255,255,255,0.12); padding: 5px 10px; border-radius: 30px; }
+  .swatch { width: 20px; height: 20px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform 0.2s; }
+  .swatch.active { border-color: #fff; transform: scale(1.18); box-shadow: 0 0 8px #fff; }
+
+  @keyframes blinkDot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.3; transform: scale(0.8); } }
+</style>
 </head>
-<body class="relative w-screen h-screen bg-slate-950 text-white select-none">
-  <div id="canvas-container" class="absolute inset-0 w-full h-full"></div>
+<body>
 
-  <!-- Minimal Gesture Status -->
-  <div class="fixed top-4 left-4 z-20 flex items-center gap-2 bg-slate-950/80 px-4 py-2 rounded-full border border-cyan-500/30 backdrop-blur-md">
-    <div id="gesture-icon" class="w-3 h-3 rounded-full bg-cyan-400 animate-pulse"></div>
-    <span id="gesture-text" class="text-xs font-bold text-cyan-300 tracking-wider">CELESTIAL BLADES</span>
+  <video id="input-video" playsinline muted></video>
+  <canvas id="scene"></canvas>
+
+  <div class="color-hud" id="color-hud">
+    <span class="color-hud__title">👎 Jempol Bawah: Geser Pilih Warna</span>
+    <div class="color-hud__swatches" id="hud-swatches"></div>
+    <div class="color-hud__bar"><div class="color-hud__fill" id="hud-fill"></div></div>
   </div>
 
-  <!-- Slide Down Color Bar (Aktif saat kedua tangan diangkat) -->
-  <div id="color-hud" class="fixed left-1/2 top-8 -translate-x-1/2 z-30 transition-all duration-300 opacity-0 pointer-events-none flex flex-col items-center gap-2 bg-slate-950/90 border border-cyan-500/50 px-6 py-3 rounded-2xl backdrop-blur-xl">
-    <span class="text-xs text-cyan-300 font-mono tracking-widest animate-pulse">↓ SLIDE DOWN UNTUK PILIH WARNA ↓</span>
-    <div id="color-palette-bar" class="flex gap-3 my-1"></div>
-    <div class="w-48 h-1 bg-slate-800 rounded-full overflow-hidden">
-      <div id="color-progress" class="h-full bg-cyan-400 transition-all duration-75" style="width: 0%"></div>
+  <div class="start-hint" id="start-hint">
+    <b>Arahkan Tangan ke Kamera</b>
+    <p>👍 Jempol atas: Angkasa • 👎 Jempol bawah: Warna • ✌️ V • 🤘 Rock • ✊ Kepalan</p>
+  </div>
+
+  <div class="hud">
+    <div class="hud__top">
+      <div class="brand">
+        <span class="brand__glyph">⟡</span>
+        <h1 class="brand__title">Pedang Bayangan</h1>
+      </div>
+      <div class="top-actions">
+        <button class="icon-btn" id="btn-audio" title="Suara Sub-Bass">🔊</button>
+        <button class="icon-btn" id="btn-flip" title="Ganti Kamera">🔄</button>
+        <button class="icon-btn" id="btn-fs" title="Layar Penuh">⛶</button>
+      </div>
+    </div>
+
+    <div class="hud__bottom">
+      <div class="status-pill">
+        <div class="status-dot" id="status-dot"></div>
+        <span class="status-text" id="status-text">Mencari tangan...</span>
+      </div>
+      <div class="theme-swatches" id="theme-swatches"></div>
     </div>
   </div>
 
-  <!-- PIP Webcam Preview -->
-  <div class="fixed bottom-4 right-4 z-20 flex flex-col items-end gap-1">
-    <div class="relative w-36 h-28 rounded-xl overflow-hidden border border-cyan-500/40 bg-slate-950 shadow-2xl">
-      <video id="webcam-video" class="hidden" playsinline></video>
-      <canvas id="pip-canvas" class="w-full h-full transform scale-x-[-1]"></canvas>
-    </div>
-    <span id="fps-label" class="text-[10px] text-cyan-400/80 font-mono">60 FPS • FILTER REAL-TIME</span>
-  </div>
+<script>
+// ==================== PALET WARNA ====================
+const PALETTES = [
+  { name: 'Aether Cyan', primary: '#00f0ff', secondary: '#7000ff' },
+  { name: 'Ember Crimson', primary: '#ff3344', secondary: '#ffaa00' },
+  { name: 'Verdant Jade', primary: '#00ffaa', secondary: '#0066ff' },
+  { name: 'Frost Azure', primary: '#70b5ff', secondary: '#ffffff' },
+  { name: 'Solar Gold', primary: '#ffcc00', secondary: '#ff4400' },
+  { name: 'Astral Void', primary: '#c050ff', secondary: '#ff00aa' }
+];
+let currentPaletteIdx = 0;
 
-  <script>
-    const PALETTES = [
-      { name: 'Cyan Frost', hex: '#00f0ff' },
-      { name: 'Solar Gold', hex: '#ffb700' },
-      { name: 'Phoenix Flame', hex: '#ff1a4b' },
-      { name: 'Void Violet', hex: '#aa15ff' },
-      { name: 'Spirit Jade', hex: '#00ff88' },
-      { name: 'Starlight', hex: '#ffffff' }
-    ];
-    let currentThemeIdx = 0;
+// ==================== WEB AUDIO SUB-BASS SYNTHESIZER ====================
+let audioCtx = null;
+let isAudioMuted = false;
+let subOsc = null, subGain = null, masterGain = null;
 
-    const paletteBar = document.getElementById('color-palette-bar');
-    PALETTES.forEach((p, idx) => {
-      const dot = document.createElement('div');
-      dot.className = 'w-6 h-6 rounded-full border border-white/40 transition-transform';
-      dot.style.backgroundColor = p.hex;
-      dot.id = 'dot-' + idx;
-      paletteBar.appendChild(dot);
-    });
+function initAudio() {
+  if (audioCtx) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return;
+  }
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    audioCtx = new AudioContextClass();
 
-    const container = document.getElementById('canvas-container');
-    const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x030712, 0.015);
+    masterGain = audioCtx.createGain();
+    masterGain.gain.setValueAtTime(0.7, audioCtx.currentTime);
+    masterGain.connect(audioCtx.destination);
 
-    const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 0, 18);
+    subGain = audioCtx.createGain();
+    subGain.gain.setValueAtTime(0.18, audioCtx.currentTime);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    container.appendChild(renderer.domElement);
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(75, audioCtx.currentTime);
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-    const pointLight = new THREE.PointLight(0x00f0ff, 4, 35);
-    scene.add(pointLight);
+    subOsc = audioCtx.createOscillator();
+    subOsc.type = 'sine';
+    subOsc.frequency.setValueAtTime(43.65, audioCtx.currentTime);
+    subOsc.connect(filter);
+    filter.connect(subGain);
+    subGain.connect(masterGain);
+    subOsc.start();
+  } catch (e) {}
+}
 
-    const bladeGeo = new THREE.CylinderGeometry(0.005, 0.045, 1.6, 4);
-    bladeGeo.scale(0.3, 1, 1);
-    bladeGeo.translate(0, 0.8, 0);
+function playSubDrop() {
+  if (!audioCtx || isAudioMuted) return;
+  try {
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(120, now);
+    osc.frequency.exponentialRampToValueAtTime(32, now + 0.8);
+    g.gain.setValueAtTime(0.8, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
+    osc.connect(g);
+    g.connect(masterGain);
+    osc.start(now);
+    osc.stop(now + 0.9);
+  } catch (e) {}
+}
 
-    const SWORD_COUNT = 850;
-    const swordMat = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      metalness: 0.85,
-      roughness: 0.2,
-      emissive: new THREE.Color(PALETTES[0].hex),
-      emissiveIntensity: 0.6
-    });
+function playWhoosh(spd) {
+  if (!audioCtx || isAudioMuted) return;
+  try {
+    const now = audioCtx.currentTime;
+    const dur = 0.22;
+    const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * dur, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    const fil = audioCtx.createBiquadFilter();
+    fil.type = 'bandpass';
+    fil.frequency.setValueAtTime(250 + Math.min(spd * 500, 1000), now);
+    fil.frequency.exponentialRampToValueAtTime(140, now + dur);
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0.3, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+    src.connect(fil);
+    fil.connect(g);
+    g.connect(masterGain);
+    src.start(now);
+  } catch (e) {}
+}
 
-    const swordMesh = new THREE.InstancedMesh(bladeGeo, swordMat, SWORD_COUNT);
-    swordMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    scene.add(swordMesh);
+function playChime(idx) {
+  if (!audioCtx || isAudioMuted) return;
+  try {
+    const now = audioCtx.currentTime;
+    const notes = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(notes[idx % notes.length], now);
+    g.gain.setValueAtTime(0.35, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+    osc.connect(g);
+    g.connect(masterGain);
+    osc.start(now);
+    osc.stop(now + 0.55);
+  } catch (e) {}
+}
 
-    const dummy = new THREE.Object3D();
-    const swords = [];
-    for (let i = 0; i < SWORD_COUNT; i++) {
-      const r = 3 + Math.random() * 10;
-      const th = Math.random() * Math.PI * 2;
-      swords.push({
-        pos: new THREE.Vector3(Math.cos(th) * r, (Math.random() - 0.5) * 8, Math.sin(th) * r),
-        targetPos: new THREE.Vector3(),
-        rot: new THREE.Euler(),
-        speed: 0.6 + Math.random() * 1.5,
-        radius: r,
-        phase: Math.random() * Math.PI * 2
-      });
+document.addEventListener('click', initAudio, { once: true });
+document.addEventListener('touchstart', initAudio, { once: true });
+
+document.getElementById('btn-audio').addEventListener('click', () => {
+  initAudio();
+  isAudioMuted = !isAudioMuted;
+  if (masterGain && audioCtx) {
+    masterGain.gain.setValueAtTime(isAudioMuted ? 0 : 0.7, audioCtx.currentTime);
+  }
+  document.getElementById('btn-audio').textContent = isAudioMuted ? '🔇' : '🔊';
+});
+
+// ==================== PROCEDURAL SWORD TEXTURE ====================
+function createSwordTexture() {
+  const s = 128;
+  const c = document.createElement('canvas');
+  c.width = s; c.height = s;
+  const ctx = c.getContext('2d');
+  ctx.translate(s/2, s/2);
+
+  const grad = ctx.createLinearGradient(0, -s * 0.47, 0, s * 0.3);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.55, 'rgba(255,255,255,0.95)');
+  grad.addColorStop(1, 'rgba(255,255,255,0.1)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(0, -s * 0.47);
+  ctx.lineTo(s * 0.065, -s * 0.02);
+  ctx.lineTo(s * 0.028, s * 0.26);
+  ctx.lineTo(-s * 0.028, s * 0.26);
+  ctx.lineTo(-s * 0.065, -s * 0.02);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  ctx.fillRect(-s * 0.15, s * 0.22, s * 0.30, s * 0.032);
+  ctx.fillRect(-s * 0.018, s * 0.25, s * 0.036, s * 0.14);
+  return new THREE.CanvasTexture(c);
+}
+
+// ==================== THREE.JS SETUP ====================
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.autoClear = false;
+renderer.setClearColor(0x000000, 1);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+
+const camera = new THREE.PerspectiveCamera(window.innerWidth < window.innerHeight ? 68 : 50, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.position.set(0, 0, 9.2);
+
+let viewH = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * camera.position.z;
+let viewW = viewH * camera.aspect;
+
+const fadeScene = new THREE.Scene();
+const fadeCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+const fadeMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2, depthTest: false, depthWrite: false });
+fadeScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), fadeMat));
+
+// ==================== 3D BLACK HOLE ====================
+const blackHole = new THREE.Group();
+blackHole.position.set(0, 0.2, -5.5);
+
+const ehGeo = new THREE.SphereGeometry(1.35, 48, 48);
+const ehMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+blackHole.add(new THREE.Mesh(ehGeo, ehMat));
+
+const prGeo = new THREE.RingGeometry(1.36, 1.52, 80);
+const prMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(PALETTES[0].primary), side: THREE.DoubleSide, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
+const photonRing = new THREE.Mesh(prGeo, prMat);
+blackHole.add(photonRing);
+
+const ACCRETION_N = 650;
+const accGeo = new THREE.BufferGeometry();
+const accPos = new Float32Array(ACCRETION_N * 3);
+const accRadii = new Float32Array(ACCRETION_N);
+const accAngles = new Float32Array(ACCRETION_N);
+const accSpeeds = new Float32Array(ACCRETION_N);
+
+for (let i = 0; i < ACCRETION_N; i++) {
+  const r = 1.45 + Math.pow(Math.random(), 1.5) * 3.2;
+  const a = Math.random() * Math.PI * 2;
+  accRadii[i] = r;
+  accAngles[i] = a;
+  accSpeeds[i] = 1.6 / Math.sqrt(r);
+  accPos[i*3] = Math.cos(a) * r;
+  accPos[i*3+1] = (Math.random() - 0.5) * (0.12 + r * 0.04);
+  accPos[i*3+2] = Math.sin(a) * r;
+}
+accGeo.setAttribute('position', new THREE.BufferAttribute(accPos, 3));
+const accDisk = new THREE.Points(accGeo, new THREE.PointsMaterial({ color: 0xffeebb, size: 0.08, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }));
+accDisk.rotation.x = Math.PI * 0.28;
+accDisk.rotation.z = Math.PI * 0.08;
+blackHole.add(accDisk);
+scene.add(blackHole);
+
+// ==================== BINTANG BERJALAN ====================
+const STAR_COUNT = 700;
+const starGeo = new THREE.BufferGeometry();
+const starPos = new Float32Array(STAR_COUNT * 3);
+const starSpeeds = new Float32Array(STAR_COUNT);
+for (let i = 0; i < STAR_COUNT; i++) {
+  starPos[i*3] = (Math.random() - 0.5) * 44;
+  starPos[i*3+1] = (Math.random() - 0.5) * 32;
+  starPos[i*3+2] = -50 + Math.random() * 60;
+  starSpeeds[i] = 0.08 + Math.random() * 0.22;
+}
+starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xc8d6ff, size: 0.065, transparent: true, opacity: 0.7, sizeAttenuation: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+scene.add(stars);
+
+// ==================== SWORD PARTICLES ====================
+const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent) || window.innerWidth < 768;
+const PARTICLE_COUNT = isMobile ? 750 : 1250;
+const swordTexture = createSwordTexture();
+
+const particleMaterial = new THREE.ShaderMaterial({
+  uniforms: { uTexture: { value: swordTexture } },
+  transparent: true,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+  vertexShader: `
+    attribute float aSize;
+    attribute vec3 aColor;
+    varying vec3 vColor;
+    void main() {
+      vColor = aColor;
+      vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = aSize * (350.0 / -mvPosition.z);
+      gl_Position = projectionMatrix * mvPosition;
     }
-
-    const STAR_COUNT = 3000;
-    const starGeo = new THREE.BufferGeometry();
-    const starPos = new Float32Array(STAR_COUNT * 3);
-    for (let i = 0; i < STAR_COUNT * 3; i += 3) {
-      starPos[i] = (Math.random() - 0.5) * 80;
-      starPos[i + 1] = (Math.random() - 0.5) * 60;
-      starPos[i + 2] = (Math.random() - 0.5) * 80 - 10;
+  `,
+  fragmentShader: `
+    uniform sampler2D uTexture;
+    varying vec3 vColor;
+    void main() {
+      vec4 tex = texture2D(uTexture, gl_PointCoord);
+      if (tex.a < 0.03) discard;
+      gl_FragColor = vec4(vColor * tex.rgb, tex.a);
     }
-    starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-    const starMat = new THREE.PointsMaterial({ size: 0.45, color: 0x00f0ff, transparent: true, opacity: 0.8 });
-    const starField = new THREE.Points(starGeo, starMat);
-    scene.add(starField);
+  `
+});
 
-    class LowPass {
-      constructor(alpha = 0.5) { this.alpha = alpha; this.y = null; this.s = null; }
-      filter(v, a) {
-        if (a !== undefined) this.alpha = a;
-        if (this.y === null) { this.s = v; this.y = v; }
-        else { this.y = this.alpha * v + (1 - this.alpha) * this.s; this.s = this.y; }
-        return this.y;
+const positions = new Float32Array(PARTICLE_COUNT * 3);
+const velocities = new Float32Array(PARTICLE_COUNT * 3);
+const colorsAttr = new Float32Array(PARTICLE_COUNT * 3);
+const sizesAttr = new Float32Array(PARTICLE_COUNT);
+const seeds = new Float32Array(PARTICLE_COUNT);
+const angles = new Float32Array(PARTICLE_COUNT);
+const radii = new Float32Array(PARTICLE_COUNT);
+const thetas = new Float32Array(PARTICLE_COUNT);
+const phis = new Float32Array(PARTICLE_COUNT);
+const colorMix = new Float32Array(PARTICLE_COUNT);
+const baseSize = new Float32Array(PARTICLE_COUNT);
+
+for (let i = 0; i < PARTICLE_COUNT; i++) {
+  seeds[i] = Math.random() * 1000;
+  angles[i] = Math.random() * Math.PI * 2;
+  radii[i] = 0.55 + Math.random() * 2.8;
+  thetas[i] = Math.acos(2 * Math.random() - 1);
+  phis[i] = Math.random() * Math.PI * 2;
+  colorMix[i] = Math.random();
+  baseSize[i] = 0.55 + Math.random() * 0.95;
+  positions[i*3] = (Math.random() - 0.5) * 8;
+  positions[i*3+1] = (Math.random() - 0.5) * 6;
+  positions[i*3+2] = (Math.random() - 0.5) * 4;
+  sizesAttr[i] = baseSize[i];
+}
+
+const pGeo = new THREE.BufferGeometry();
+pGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+pGeo.setAttribute('aColor', new THREE.BufferAttribute(colorsAttr, 3));
+pGeo.setAttribute('aSize', new THREE.BufferAttribute(sizesAttr, 1));
+const swarm = new THREE.Points(pGeo, particleMaterial);
+scene.add(swarm);
+
+// ==================== NEON SKELETON ====================
+const HAND_CONNECTIONS = [
+  [0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],
+  [9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]
+];
+const lineGeo = new THREE.BufferGeometry();
+lineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(HAND_CONNECTIONS.length * 6), 3));
+const skeleton = new THREE.LineSegments(lineGeo, new THREE.LineBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.9 }));
+skeleton.visible = false;
+scene.add(skeleton);
+
+// ==================== MEDIAPIPE TRACKING ====================
+const video = document.getElementById('input-video');
+let activeGesture = 'none';
+let isColorPickerOpen = false;
+let colorSlideProgress = 0;
+let isCosmicMode = false;
+let handVelocity = { x: 0, y: 0 };
+let lastHandPos = null;
+let currentLandmarks = null;
+
+function dist(p1, p2) {
+  const dx = p1.x - p2.x, dy = p1.y - p2.y, dz = (p1.z||0) - (p2.z||0);
+  return Math.sqrt(dx*dx + dy*dy + dz*dz);
+}
+function isExt(tip, pip, wrist) {
+  return dist(tip, wrist) > dist(pip, wrist) * 1.15;
+}
+
+function onResults(results) {
+  const startHint = document.getElementById('start-hint');
+  const statusText = document.getElementById('status-text');
+
+  if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+    if (startHint) startHint.style.opacity = '0';
+    const lm = results.multiHandLandmarks[0];
+    currentLandmarks = lm;
+    skeleton.visible = true;
+
+    const curPos = { x: lm[0].x, y: lm[0].y };
+    if (lastHandPos) {
+      handVelocity.x = (curPos.x - lastHandPos.x) * 20;
+      handVelocity.y = (curPos.y - lastHandPos.y) * 20;
+      const spd = Math.hypot(handVelocity.x, handVelocity.y);
+      if (spd > 0.4) playWhoosh(spd);
+    }
+    lastHandPos = curPos;
+
+    const wrist = lm[0];
+    const thumbTip = lm[4], thumbIp = lm[3], thumbMcp = lm[2];
+    const indexTip = lm[8], indexPip = lm[6];
+    const midTip = lm[12], midPip = lm[10];
+    const ringTip = lm[16], ringPip = lm[14];
+    const pinkyTip = lm[20], pinkyPip = lm[18];
+
+    const thumbExt = dist(thumbTip, wrist) > dist(thumbMcp, wrist) * 1.05;
+    const indexExt = isExt(indexTip, indexPip, wrist);
+    const midExt = isExt(midTip, midPip, wrist);
+    const ringExt = isExt(ringTip, ringPip, wrist);
+    const pinkyExt = isExt(pinkyTip, pinkyPip, wrist);
+    const otherCurled = !indexExt && !midExt && !ringExt && !pinkyExt;
+
+    const thumbUp = thumbTip.y < thumbIp.y - 0.02 && thumbIp.y < thumbMcp.y;
+    const thumbDown = thumbTip.y > thumbIp.y + 0.02 && thumbIp.y > thumbMcp.y - 0.05;
+
+    if (thumbDown && otherCurled && thumbExt) {
+      activeGesture = 'thumbs_down';
+      isColorPickerOpen = true;
+      colorSlideProgress = Math.max(0, Math.min(1, (1.0 - wrist.x - 0.15) / 0.70));
+      const targetIdx = Math.min(PALETTES.length - 1, Math.floor(colorSlideProgress * PALETTES.length));
+      if (targetIdx !== currentPaletteIdx) {
+        selectPalette(targetIdx);
+        playChime(targetIdx);
       }
+      statusText.textContent = 'Jempol Bawah: Geser Pilih Warna';
+    } else if (thumbUp && otherCurled && thumbExt) {
+      if (!isCosmicMode) playSubDrop();
+      activeGesture = 'thumbs_up';
+      isCosmicMode = true;
+      statusText.textContent = 'Jempol Atas: Angkasa & Supernova';
+    } else if (indexExt && midExt && !ringExt && !pinkyExt) {
+      activeGesture = 'peace';
+      statusText.textContent = 'Tanda V: Hujan Pedang';
+    } else if (indexExt && !midExt && !ringExt && pinkyExt) {
+      activeGesture = 'rock';
+      statusText.textContent = 'Tanda Rock: Bola Anyaman';
+    } else if (!indexExt && !midExt && !ringExt && !pinkyExt) {
+      if (isCosmicMode) playSubDrop();
+      activeGesture = 'fist';
+      isCosmicMode = false;
+      isColorPickerOpen = false;
+      statusText.textContent = 'Kepalan: Singularitas Portal';
+    } else if (indexExt && midExt && ringExt && pinkyExt) {
+      activeGesture = 'open_palm';
+      isColorPickerOpen = false;
+      statusText.textContent = 'Telapak Terbuka: Ledakan Cincin';
+    } else {
+      activeGesture = 'flow';
+      statusText.textContent = 'Kawanan Mengalir Mengikuti Tangan';
     }
-    class OneEuro {
-      constructor(minCutoff = 1.0, beta = 0.05) {
-        this.minCutoff = minCutoff; this.beta = beta;
-        this.xFilter = new LowPass(); this.dxFilter = new LowPass();
-        this.lastTime = null;
-      }
-      filter(val, time) {
-        if (!this.lastTime) { this.lastTime = time; return this.xFilter.filter(val); }
-        const dt = Math.max((time - this.lastTime) / 1000, 0.001);
-        this.lastTime = time;
-        const dx = (val - (this.xFilter.y || val)) / dt;
-        const edx = this.dxFilter.filter(dx, 0.5);
-        const cutoff = this.minCutoff + this.beta * Math.abs(edx);
-        const tau = 1.0 / (2 * Math.PI * cutoff);
-        const alpha = 1.0 / (1.0 + tau / dt);
-        return this.xFilter.filter(val, alpha);
-      }
-    }
 
-    const filterHandX = new OneEuro(1.2, 0.08);
-    const filterHandY = new OneEuro(1.2, 0.08);
-
-    let handX = 0, handY = 0;
-    let isCosmic = false;
-    let activeGesture = 'none';
-    let isColorPickerOpen = false;
-
-    const videoElement = document.getElementById('webcam-video');
-    const pipCanvas = document.getElementById('pip-canvas');
-    const pipCtx = pipCanvas.getContext('2d');
     const colorHud = document.getElementById('color-hud');
-    const colorProgress = document.getElementById('color-progress');
-    const gestureText = document.getElementById('gesture-text');
-
-    const hands = new Hands({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-    });
-
-    hands.setOptions({
-      maxNumHands: 2,
-      modelComplexity: 1,
-      minDetectionConfidence: 0.6,
-      minTrackingConfidence: 0.6
-    });
-
-    hands.onResults((results) => {
-      pipCanvas.width = 320; pipCanvas.height = 240;
-      pipCtx.clearRect(0, 0, 320, 240);
-
-      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-        const h0 = results.multiHandLandmarks[0];
-        const now = performance.now();
-
-        const rawX = (0.5 - h0[0].x) * 16;
-        const rawY = (0.5 - h0[0].y) * 12;
-        handX = filterHandX.filter(rawX, now);
-        handY = filterHandY.filter(rawY, now);
-
-        const thumbTip = h0[4], thumbIp = h0[3], indexTip = h0[8], indexPip = h0[6];
-        const isThumbsUp = thumbTip.y < thumbIp.y - 0.04 && indexTip.y > indexPip.y;
-        const isPointing = indexTip.y < indexPip.y && thumbTip.y > thumbIp.y;
-
-        if (results.multiHandLandmarks.length >= 2) {
-          const h1 = results.multiHandLandmarks[1];
-          if (h0[0].y < 0.38 && h1[0].y < 0.38) {
-            isColorPickerOpen = true;
-            colorHud.style.opacity = '1';
-            gestureText.innerText = 'COLOR SELECTION (SLIDE DOWN)';
-          } else if (isColorPickerOpen) {
-            const avgY = (h0[0].y + h1[0].y) / 2;
-            const progress = Math.max(0, Math.min(1, (avgY - 0.25) / 0.55));
-            colorProgress.style.width = (progress * 100) + '%';
-            const targetIdx = Math.min(PALETTES.length - 1, Math.floor(progress * PALETTES.length));
-            if (targetIdx !== currentThemeIdx) {
-              currentThemeIdx = targetIdx;
-              applyColorTheme(currentThemeIdx);
-            }
-            if (avgY > 0.85) {
-              isColorPickerOpen = false;
-              colorHud.style.opacity = '0';
-            }
-          }
-        } else {
-          if (isThumbsUp) {
-            isCosmic = true;
-            gestureText.innerText = 'GALAXY COSMOS AWAKENING';
-          } else if (isPointing) {
-            activeGesture = 'strike';
-            gestureText.innerText = 'PIERCING SWORD MUDRA';
-          } else {
-            activeGesture = 'swarm';
-            gestureText.innerText = 'WAN JIAN SWARM DOMAIN';
-          }
-        }
-
-        results.multiHandLandmarks.forEach((lms) => {
-          pipCtx.strokeStyle = '#00f0ff';
-          pipCtx.lineWidth = 2;
-          for (let i = 0; i < lms.length - 1; i++) {
-            pipCtx.beginPath();
-            pipCtx.moveTo((1 - lms[i].x) * 320, lms[i].y * 240);
-            pipCtx.lineTo((1 - lms[i + 1].x) * 320, lms[i + 1].y * 240);
-            pipCtx.stroke();
-          }
-        });
-      }
-    });
-
-    const cameraFeed = new Camera(videoElement, {
-      onFrame: async () => { await hands.send({ image: videoElement }); },
-      width: 640, height: 480
-    });
-    cameraFeed.start().catch((err) => console.log('Camera error:', err));
-
-    function applyColorTheme(idx) {
-      const p = PALETTES[idx];
-      swordMat.emissive.set(p.hex);
-      pointLight.color.set(p.hex);
-      starMat.color.set(p.hex);
-      PALETTES.forEach((_, i) => {
-        const d = document.getElementById('dot-' + i);
-        if (d) d.style.transform = i === idx ? 'scale(1.3)' : 'scale(1.0)';
-      });
+    const hudFill = document.getElementById('hud-fill');
+    if (isColorPickerOpen) {
+      colorHud.classList.add('active');
+      hudFill.style.width = (colorSlideProgress * 100) + '%';
+    } else {
+      colorHud.classList.remove('active');
     }
 
-    let clock = new THREE.Clock();
-    function animate() {
-      requestAnimationFrame(animate);
-      const time = clock.getElapsedTime();
+  } else {
+    currentLandmarks = null;
+    skeleton.visible = false;
+    statusText.textContent = 'Mencari tangan...';
+    if (startHint) startHint.style.opacity = '1';
+  }
+}
 
-      const targetCamX = handX * 0.45;
-      const targetCamY = handY * 0.45;
-      const targetCamZ = isCosmic ? 24 : 18;
-      camera.position.x += (targetCamX - camera.position.x) * 0.12;
-      camera.position.y += (targetCamY - camera.position.y) * 0.12;
-      camera.position.z += (targetCamZ - camera.position.z) * 0.10;
-      camera.lookAt(handX * 0.2, handY * 0.2, 0);
+const hands = new Hands({
+  locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+});
+hands.setOptions({
+  maxNumHands: 1,
+  modelComplexity: 1,
+  minDetectionConfidence: 0.6,
+  minTrackingConfidence: 0.6
+});
+hands.onResults(onResults);
 
-      starField.rotation.y = time * 0.02;
-      starField.scale.setScalar(isCosmic ? 2.5 : 1.0);
+let facingMode = 'user';
+let cameraInstance = null;
+function startCamera() {
+  if (cameraInstance) cameraInstance.stop();
+  cameraInstance = new Camera(video, {
+    onFrame: async () => { await hands.send({ image: video }); },
+    width: 640,
+    height: 480,
+    facingMode: facingMode
+  });
+  cameraInstance.start();
+}
+startCamera();
 
-      for (let i = 0; i < SWORD_COUNT; i++) {
-        const s = swords[i];
-        const theta = s.phase + time * s.speed * (isCosmic ? 1.4 : 1.0);
-        const r = s.radius * (isCosmic ? 1.5 : 1.0);
+document.getElementById('btn-flip').addEventListener('click', () => {
+  facingMode = facingMode === 'user' ? 'environment' : 'user';
+  startCamera();
+});
 
-        if (activeGesture === 'strike') {
-          const off = ((i * 0.3 + time * 15) % 30) - 15;
-          s.targetPos.set(handX + Math.sin(i) * 1.2, handY + Math.cos(i) * 1.2, off);
-          s.rot.set(-Math.PI / 2, 0, 0);
-        } else {
-          s.targetPos.set(
-            handX + Math.cos(theta) * r,
-            handY + Math.sin(theta * 1.2) * (r * 0.5) + Math.sin(time + i) * 0.5,
-            Math.sin(theta) * (r * 0.8)
-          );
-          s.rot.set(Math.sin(theta) * 0.5, Math.cos(theta) * 0.5, theta + Math.PI / 2);
-        }
+document.getElementById('btn-fs').addEventListener('click', () => {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+  else document.exitFullscreen();
+});
 
-        s.pos.lerp(s.targetPos, 0.08);
+// ==================== PALETTE SELECTION ====================
+function selectPalette(idx) {
+  currentPaletteIdx = idx;
+  const p = PALETTES[idx];
+  document.documentElement.style.setProperty('--accent-a', p.primary);
+  document.documentElement.style.setProperty('--accent-b', p.secondary);
+  photonRing.material.color.set(p.primary);
+  document.querySelectorAll('.swatch').forEach((s, i) => {
+    s.classList.toggle('active', i === idx);
+  });
+  document.querySelectorAll('.color-hud__swatch').forEach((s, i) => {
+    s.classList.toggle('selected', i === idx);
+  });
+}
 
-        dummy.position.copy(s.pos);
-        dummy.rotation.copy(s.rot);
-        dummy.updateMatrix();
-        swordMesh.setMatrixAt(i, dummy.matrix);
-      }
-      swordMesh.instanceMatrix.needsUpdate = true;
+const swatchRow = document.getElementById('theme-swatches');
+const hudSwatches = document.getElementById('hud-swatches');
+PALETTES.forEach((p, idx) => {
+  const btn = document.createElement('div');
+  btn.className = 'swatch' + (idx === 0 ? ' active' : '');
+  btn.style.backgroundColor = p.primary;
+  btn.onclick = () => { selectPalette(idx); playChime(idx); };
+  swatchRow.appendChild(btn);
 
-      renderer.render(scene, camera);
-    }
-    animate();
+  const hBtn = document.createElement('div');
+  hBtn.className = 'color-hud__swatch' + (idx === 0 ? ' selected' : '');
+  hBtn.style.backgroundColor = p.primary;
+  hBtn.onclick = () => { selectPalette(idx); playChime(idx); };
+  hudSwatches.appendChild(hBtn);
+});
 
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
+// ==================== ANIMATION LOOP ====================
+const clock = new THREE.Clock();
+const anchorSmooth = new THREE.Vector3(0, 0.2, 0);
+const anchorRaw = new THREE.Vector3();
+const targetPos = new THREE.Vector3();
+const colorA = new THREE.Color(PALETTES[0].primary);
+const colorB = new THREE.Color(PALETTES[0].secondary);
+const tempCol = new THREE.Color();
+
+function mapToWorld(lm) {
+  return new THREE.Vector3((0.5 - lm.x) * viewW * 0.92, (0.5 - lm.y) * viewH * 0.92, -(lm.z||0) * 8);
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  const time = clock.getElapsedTime();
+
+  colorA.lerp(new THREE.Color(PALETTES[currentPaletteIdx].primary), 0.08);
+  colorB.lerp(new THREE.Color(PALETTES[currentPaletteIdx].secondary), 0.08);
+
+  if (currentLandmarks && currentLandmarks.length >= 21) {
+    anchorRaw.copy(mapToWorld(currentLandmarks[9] || currentLandmarks[0]));
+    anchorSmooth.lerp(anchorRaw, 0.2);
+
+    const lp = lineGeo.attributes.position.array;
+    HAND_CONNECTIONS.forEach(([a, b], idx) => {
+      const p1 = mapToWorld(currentLandmarks[a]);
+      const p2 = mapToWorld(currentLandmarks[b]);
+      lp[idx*6] = p1.x; lp[idx*6+1] = p1.y; lp[idx*6+2] = p1.z;
+      lp[idx*6+3] = p2.x; lp[idx*6+4] = p2.y; lp[idx*6+5] = p2.z;
     });
-  </script>
+    lineGeo.attributes.position.needsUpdate = true;
+    skeleton.material.color.copy(colorA);
+  } else {
+    anchorSmooth.lerp(new THREE.Vector3(0, 0.2, 0), 0.05);
+  }
+
+  const accP = accGeo.attributes.position.array;
+  for (let i = 0; i < ACCRETION_N; i++) {
+    accAngles[i] += accSpeeds[i] * 0.015;
+    accP[i*3] = Math.cos(accAngles[i]) * accRadii[i];
+    accP[i*3+2] = Math.sin(accAngles[i]) * accRadii[i];
+  }
+  accGeo.attributes.position.needsUpdate = true;
+  blackHole.rotation.y = time * 0.06;
+  photonRing.scale.setScalar(1.0 + 0.025 * Math.sin(time * 3.0));
+
+  const sPos = starGeo.attributes.position.array;
+  const speedMul = isCosmicMode ? 5.5 : 1.0;
+  for (let i = 0; i < STAR_COUNT; i++) {
+    sPos[i*3+2] += starSpeeds[i] * speedMul;
+    if (sPos[i*3+2] > 9.5) {
+      sPos[i*3+2] = -50 - Math.random() * 15;
+      sPos[i*3] = (Math.random() - 0.5) * 44;
+      sPos[i*3+1] = (Math.random() - 0.5) * 32;
+    }
+  }
+  starGeo.attributes.position.needsUpdate = true;
+
+  const pPos = pGeo.attributes.position.array;
+  const pCol = pGeo.attributes.aColor.array;
+  const pSiz = pGeo.attributes.aSize.array;
+  const spring = isCosmicMode ? 0.15 : 0.12;
+
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const s = seeds[i];
+    if (activeGesture === 'thumbs_down') {
+      const ratio = i / PARTICLE_COUNT;
+      const arc = (ratio - 0.5) * Math.PI * 1.6 + (colorSlideProgress - 0.5) * Math.PI * 0.8;
+      const r = 2.2 + (s % 10) * 0.08;
+      targetPos.set(anchorSmooth.x + Math.cos(arc) * r, anchorSmooth.y + 0.8 + Math.sin(arc) * (r * 0.4), anchorSmooth.z + Math.sin(ratio * 12 + time) * 0.4);
+      pSiz[i] = baseSize[i] * 1.25;
+    } else if (activeGesture === 'thumbs_up') {
+      const spAng = (i / PARTICLE_COUNT) * Math.PI * 12 + time * 1.5;
+      const spR = 0.9 + (i / PARTICLE_COUNT) * 5.0;
+      targetPos.set(anchorSmooth.x + Math.cos(spAng) * spR, anchorSmooth.y + 0.8 + Math.sin(spAng) * spR * 0.55, anchorSmooth.z + Math.sin(time * 2 + s) * 1.6 - 1.2);
+      pSiz[i] = baseSize[i] * 1.5;
+    } else if (activeGesture === 'peace') {
+      const col = i % 25, row = Math.floor(i / 25);
+      targetPos.set(anchorSmooth.x + (col / 24 - 0.5) * 6, anchorSmooth.y + (row / 30) * 5 - 0.8 + Math.sin(time * 2.2 + s) * 0.15, anchorSmooth.z + Math.sin(s * 2.7) * 0.8);
+      pSiz[i] = baseSize[i] * 0.9;
+    } else if (activeGesture === 'rock') {
+      targetPos.set(anchorSmooth.x + 1.45 * Math.sin(thetas[i]) * Math.cos(phis[i] + time * 0.65), anchorSmooth.y + 1.0 + 1.45 * Math.cos(thetas[i]), anchorSmooth.z + 1.45 * Math.sin(thetas[i]) * Math.sin(phis[i] + time * 0.65));
+      pSiz[i] = baseSize[i] * 0.95;
+    } else if (activeGesture === 'fist') {
+      const ang = angles[i] + time * 2.2, r = 0.75 + (radii[i] % 1) * 0.9;
+      targetPos.set(anchorSmooth.x + Math.cos(ang) * r, anchorSmooth.y + 0.8 + Math.sin(ang) * r * 0.35, anchorSmooth.z + Math.sin(ang * 2 + s) * 0.6);
+      pSiz[i] = baseSize[i] * 1.15;
+    } else if (activeGesture === 'open_palm') {
+      const ph = (time * 0.65 + s * 0.013) % 1.0, r = ph * 4.0, a = angles[i];
+      targetPos.set(anchorSmooth.x + Math.cos(a) * r, anchorSmooth.y + 0.8 + Math.sin(a) * r * 0.85, anchorSmooth.z + Math.sin(ph * Math.PI) * 0.8);
+      pSiz[i] = baseSize[i] * (1.1 - ph * 0.65);
+    } else {
+      targetPos.set(anchorSmooth.x + Math.cos(angles[i] + time * 0.5 + s) * radii[i] * 0.65, anchorSmooth.y + Math.sin(angles[i] * 1.3 + time * 0.55 + s) * radii[i] * 0.5 + 0.4, anchorSmooth.z + Math.sin(time * 0.35 + s) * 0.85);
+      pSiz[i] = baseSize[i];
+    }
+
+    const ix = i * 3;
+    const ax = (targetPos.x - pPos[ix]) * spring;
+    const ay = (targetPos.y - pPos[ix+1]) * spring;
+    const az = (targetPos.z - pPos[ix+2]) * spring;
+
+    velocities[ix] = (velocities[ix] + ax + handVelocity.x * 0.05) * 0.85;
+    velocities[ix+1] = (velocities[ix+1] + ay - handVelocity.y * 0.05) * 0.85;
+    velocities[ix+2] = (velocities[ix+2] + az) * 0.85;
+
+    pPos[ix] += velocities[ix];
+    pPos[ix+1] += velocities[ix+1];
+    pPos[ix+2] += velocities[ix+2];
+
+    tempCol.copy(colorA).lerp(colorB, colorMix[i]).multiplyScalar(0.85 + 0.15 * Math.sin(time * 2.5 + s));
+    pCol[ix] = tempCol.r; pCol[ix+1] = tempCol.g; pCol[ix+2] = tempCol.b;
+  }
+
+  pGeo.attributes.position.needsUpdate = true;
+  pGeo.attributes.aColor.needsUpdate = true;
+  pGeo.attributes.aSize.needsUpdate = true;
+
+  renderer.clearDepth();
+  renderer.render(fadeScene, fadeCamera);
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.fov = window.innerWidth < window.innerHeight ? 68 : 50;
+  camera.updateProjectionMatrix();
+  viewH = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * camera.position.z;
+  viewW = viewH * camera.aspect;
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
 </body>
 </html>
