@@ -1,600 +1,165 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Pedang Bayangan — Kawanan Pedang dari Gestur Tangan</title>
-<meta name="description" content="Efek partikel kawanan pedang bercahaya dengan Black Hole 3D, suara sub-bass mewah, dan kontrol warna jempol ke bawah lewat kamera." />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Pedang Bayangan — Black Hole & Celestial Swarm</title>
 
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
 <style>
   :root {
-    --void-0: #000000;
-    --void-1: #030408;
-    --panel: rgba(5, 7, 18, 0.68);
-    --panel-strong: rgba(4, 6, 15, 0.88);
+    --void-0: #020208;
+    --void-1: #060919;
+    --panel-strong: rgba(6, 10, 26, 0.88);
     --edge: rgba(255, 255, 255, 0.12);
-    --text-0: #f1f5f9;
-    --text-1: #94a3b8;
-
-    /* Tema aktif */
-    --accent-a: #00f0ff;
-    --accent-b: #7000ff;
-
-    --font-display: "Cinzel", "Georgia", serif;
-    --font-ui: "Space Grotesk", "Segoe UI", sans-serif;
+    --text-0: #f4f6ff;
+    --text-1: #9aa1c9;
+    --accent-a: #5eead4;
+    --accent-b: #a78bfa;
+    --font-display: "Cinzel", Georgia, serif;
+    --font-ui: "Space Grotesk", sans-serif;
   }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-
+  * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
-    width: 100%;
-    height: 100%;
-    background: #000000;
-    color: var(--text-0);
-    font-family: var(--font-ui);
-    overflow: hidden;
+    width: 100%; height: 100%; overflow: hidden;
+    background: radial-gradient(ellipse at 50% 35%, var(--void-1), var(--void-0) 75%);
+    color: var(--text-0); font-family: var(--font-ui);
+    user-select: none; -webkit-user-select: none;
   }
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 1; display: block; }
+  #input-video { display: none; }
 
-  #input-video {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    opacity: 0;
-    pointer-events: none;
-    display: none !important;
-  }
-
-  #scene {
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    display: block;
-    z-index: 1;
-  }
-
-  /* HUD */
-  .hud {
-    position: fixed;
-    inset: 0;
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    padding: clamp(14px, 3vw, 26px);
-    pointer-events: none;
-  }
-
-  .hud__top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  .brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    pointer-events: auto;
-  }
-
-  .brand__glyph {
-    font-size: 1.3rem;
-    color: var(--accent-a);
-    filter: drop-shadow(0 0 10px var(--accent-a));
-    transition: color 0.3s;
-  }
-
-  .brand__title {
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: clamp(1.1rem, 2.4vw, 1.45rem);
-    letter-spacing: 0.04em;
-    color: var(--text-0);
-    margin: 0;
-  }
-
-  .top-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    pointer-events: auto;
-  }
-
-  .btn-forged {
-    font-family: var(--font-ui);
-    font-size: 0.8rem;
-    color: var(--text-0);
-    background: var(--panel-strong);
-    border: 1px solid var(--edge);
-    border-top: 2px solid var(--accent-a);
-    clip-path: polygon(8px 0, 100% 0, 100% 100%, 8px 100%, 0 calc(100% - 8px), 0 8px);
-    padding: 7px 14px;
-    cursor: pointer;
-    backdrop-filter: blur(10px);
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .btn-forged:hover {
-    background: rgba(18, 24, 45, 0.95);
-    border-color: var(--accent-a);
-  }
-
-  /* COLOR HUD POPUP SAAT JEMPOL KE BAWAH */
   .color-hud {
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%) translateY(-30px);
-    z-index: 25;
-    background: var(--panel-strong);
-    border-top: 2px solid var(--accent-a);
-    border-bottom: 1px solid var(--accent-b);
-    clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
-    padding: 10px 18px;
-    opacity: 0;
-    pointer-events: none;
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    backdrop-filter: blur(14px);
-    box-shadow: 0 0 25px rgba(0, 0, 0, 0.85);
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+    background: var(--panel-strong); border: 1px solid var(--accent-a);
+    border-radius: 9999px; padding: 6px 16px; display: flex; align-items: center; gap: 10px;
+    backdrop-filter: blur(16px); z-index: 20; opacity: 0; pointer-events: none; transition: all 0.25s ease;
   }
-  .color-hud.active {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateX(-50%) translateY(0);
-  }
-  .color-hud__title {
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--accent-a);
-    font-weight: 600;
-  }
-  .color-hud__swatches {
-    display: flex;
-    gap: 8px;
-  }
+  .color-hud.active { opacity: 1; pointer-events: auto; }
+  .color-hud__swatches { display: flex; gap: 8px; }
   .color-hud__swatch {
-    width: 22px;
-    height: 22px;
-    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
-    border: none;
-    cursor: pointer;
-    transition: transform 0.2s;
+    width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform 0.15s;
   }
-  .color-hud__swatch.selected {
-    transform: scale(1.3);
-    outline: 2px solid #fff;
-  }
-  .color-hud__bar {
-    width: 140px;
-    height: 3px;
-    background: rgba(255,255,255,0.15);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-  .color-hud__fill {
-    height: 100%;
-    background: var(--accent-a);
-    width: 0%;
-    transition: width 0.08s;
-  }
+  .color-hud__swatch.selected { border-color: #fff; transform: scale(1.25); }
 
-  /* START HINT */
-  .start-hint {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
-    pointer-events: none;
-    color: var(--text-1);
-    font-size: 0.82rem;
-    max-width: 300px;
-    line-height: 1.5;
-    background: var(--panel-strong);
-    border-left: 2px solid var(--accent-a);
-    clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
-    padding: 16px 20px;
-    backdrop-filter: blur(12px);
-    transition: opacity 0.5s ease;
-    z-index: 15;
+  .hud-top {
+    position: fixed; top: 14px; right: 14px; display: flex; gap: 8px; z-index: 25;
   }
-  .start-hint b {
-    color: var(--text-0);
-    display: block;
-    font-family: var(--font-display);
-    font-size: 1.05rem;
-    margin-bottom: 6px;
+  .hud-btn {
+    display: flex; align-items: center; justify-content: center; width: 38px; height: 38px;
+    border-radius: 50%; background: rgba(0,0,0,0.7); border: 1px solid var(--edge);
+    color: #fff; cursor: pointer; backdrop-filter: blur(12px); transition: all 0.2s;
   }
-  .start-hint.is-hidden { opacity: 0; }
+  .hud-btn:hover { border-color: var(--accent-a); }
 
-  /* BOTTOM */
-  .hud__bottom {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-    pointer-events: auto;
+  .pip-container {
+    position: fixed; bottom: 14px; right: 14px; width: 88px; height: 66px;
+    border-radius: 10px; overflow: hidden; border: 1px solid var(--edge);
+    background: #000; z-index: 25; box-shadow: 0 4px 18px rgba(0,0,0,0.8);
   }
-
-  .status-pill {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: var(--panel);
-    border-left: 2px solid var(--accent-a);
-    clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
-    padding: 9px 16px;
-    backdrop-filter: blur(10px);
-    min-width: 220px;
-  }
-  .status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #475569;
-    flex-shrink: 0;
-    transition: background 0.25s, box-shadow 0.25s;
-  }
-  .status-dot.live {
-    background: var(--accent-a);
-    box-shadow: 0 0 10px var(--accent-a);
-  }
-  .status-text {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .status-text__state {
-    font-size: 0.65rem;
-    color: var(--text-1);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-  .status-text__gesture {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--text-0);
-  }
-
-  .controls {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .theme-row {
-    display: flex;
-    gap: 6px;
-    background: var(--panel);
-    padding: 6px 9px;
-    border-left: 2px solid var(--accent-b);
-    clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
-    backdrop-filter: blur(10px);
-  }
-
-  .theme-swatch {
-    width: 20px;
-    height: 20px;
-    border: none;
-    cursor: pointer;
-    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
-    opacity: 0.6;
-    transition: opacity 0.2s, transform 0.2s;
-  }
-  .theme-swatch:hover { opacity: 0.95; transform: scale(1.12); }
-  .theme-swatch.active {
-    opacity: 1;
-    transform: scale(1.15);
-    outline: 1px solid rgba(255,255,255,0.7);
-  }
-
-  /* LEGENDA GESTUR */
-  .legend {
-    position: absolute;
-    right: clamp(14px, 3vw, 26px);
-    bottom: 74px;
-    width: min(300px, 85vw);
-    background: var(--panel-strong);
-    border-left: 2px solid var(--accent-b);
-    clip-path: polygon(12px 0, 100% 0, 100% 100%, 0 100%, 0 12px);
-    backdrop-filter: blur(14px);
-    padding: 14px 18px;
-    z-index: 30;
-  }
-  .legend[hidden] { display: none; }
-  .legend h2 {
-    font-family: var(--font-display);
-    font-size: 0.95rem;
-    margin: 0 0 10px;
-    color: var(--text-0);
-  }
-  .legend ul {
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .legend li {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    font-size: 0.76rem;
-    color: var(--text-1);
-    line-height: 1.35;
-  }
-  .legend li span.sym { font-size: 0.95rem; width: 20px; flex-shrink: 0; }
-  .legend li b { color: var(--text-0); }
+  .pip-container video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
 </style>
 </head>
 <body>
 
-  <video id="input-video" playsinline muted></video>
-  <canvas id="scene"></canvas>
+<canvas id="scene"></canvas>
+<video id="input-video" playsinline muted></video>
 
-  <!-- Color Selector HUD (Jempol ke bawah) -->
-  <div class="color-hud" id="color-hud">
-    <span class="color-hud__title">👎 Jempol Bawah: Geser Pilih Warna</span>
-    <div class="color-hud__swatches" id="hud-swatches"></div>
-    <div class="color-hud__bar"><div class="color-hud__fill" id="hud-fill"></div></div>
-  </div>
+<div class="color-hud" id="color-hud">
+  <div class="color-hud__swatches" id="hud-swatches"></div>
+</div>
 
-  <!-- Start Hint -->
-  <div class="start-hint" id="start-hint">
-    <b>Arahkan Tangan ke Kamera</b>
-    <p>👍 Jempol atas: Angkasa • 👎 Jempol bawah: Warna • ✌️ V • 🤘 Rock • ✊ Kepalan</p>
-  </div>
+<div class="hud-top">
+  <button class="hud-btn" id="btn-audio" title="Audio">🔊</button>
+  <button class="hud-btn" id="btn-fs" title="Fullscreen">⛶</button>
+</div>
 
-  <!-- Main HUD -->
-  <div class="hud">
-    <div class="hud__top">
-      <div class="brand">
-        <span class="brand__glyph">⟡</span>
-        <h1 class="brand__title">Pedang Bayangan</h1>
-      </div>
-      <div class="top-actions">
-        <button class="btn-forged" id="btn-audio" title="Suara Sub-Bass">🔊 Bass On</button>
-        <button class="btn-forged" id="btn-flip" title="Ganti Kamera Depan/Belakang">🔄 Kamera</button>
-        <button class="btn-forged" id="btn-fs" title="Layar Penuh">⛶</button>
-      </div>
-    </div>
-
-    <!-- Panel Legenda Gestur -->
-    <div class="legend" id="legend" hidden>
-      <h2>Daftar Gestur Pedang</h2>
-      <ul>
-        <li><span class="sym">👎</span><span><b>Jempol Bawah:</b> Geser tangan untuk ganti warna bilah pedang.</span></li>
-        <li><span class="sym">👍</span><span><b>Jempol Atas:</b> Angkasa kosmis, pedang membesar & warp speed.</span></li>
-        <li><span class="sym">✌️</span><span><b>Tanda V:</b> Hujan pedang berbaris rapi dari portal.</span></li>
-        <li><span class="sym">🤘</span><span><b>Tanda Rock:</b> Bola anyaman pedang 3D berputar.</span></li>
-        <li><span class="sym">✊</span><span><b>Kepalan:</b> Singularitas portal padat & sub-bass drop.</span></li>
-        <li><span class="sym">🖐️</span><span><b>Telapak Terbuka:</b> Ledakan cincin cahaya meluas.</span></li>
-        <li><span class="sym">👋</span><span><b>Gerakan Biasa:</b> Kawanan mengalir lincah mengikuti tangan.</span></li>
-      </ul>
-    </div>
-
-    <div class="hud__bottom">
-      <div class="status-pill">
-        <div class="status-dot" id="status-dot"></div>
-        <div class="status-text">
-          <span class="status-text__state" id="status-state">Mencari tangan…</span>
-          <span class="status-text__gesture" id="status-gesture">Arahkan tangan ke kamera</span>
-        </div>
-      </div>
-
-      <div class="controls">
-        <div class="theme-row" id="theme-row"></div>
-        <button class="btn-forged" id="legend-toggle" title="Petunjuk Gestur">?</button>
-      </div>
-    </div>
-  </div>
+<div class="pip-container">
+  <video id="pip-video" playsinline muted autoplay></video>
+</div>
 
 <script>
-/* =========================================================================
-   Pedang Bayangan — Engine Partikel 3D, Black Hole, Web Audio & MediaPipe
-   ========================================================================= */
-
-// 1. TEMA WARNA
 const THEMES = [
-  { id: 'aether', name: 'Aether', a: '#00f0ff', b: '#7000ff' },
-  { id: 'ember', name: 'Ember', a: '#ff3344', b: '#ffaa00' },
-  { id: 'verdant', name: 'Verdant', a: '#00ffaa', b: '#0066ff' },
-  { id: 'frost', name: 'Frost', a: '#70b5ff', b: '#ffffff' },
-  { id: 'solar', name: 'Solar', a: '#ffcc00', b: '#ff4400' },
-  { id: 'astral', name: 'Astral Void', a: '#c050ff', b: '#ff00aa' }
+  { a: '#5eead4', b: '#a78bfa' },
+  { a: '#f43f5e', b: '#fbbf24' },
+  { a: '#38bdf8', b: '#818cf8' },
+  { a: '#34d399', b: '#a3e635' },
+  { a: '#c084fc', b: '#f472b6' },
+  { a: '#facc15', b: '#f97316' },
+  { a: '#ffffff', b: '#94a3b8' }
 ];
 let currentThemeIdx = 0;
 
-// 2. WEB AUDIO SUB-BASS SYNTHESIZER
-let audioCtx = null;
-let isMuted = false;
-let subOsc = null, subGain = null, masterGain = null;
-
-function initAudio() {
-  if (audioCtx) {
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    return;
-  }
-  try {
-    const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
-    audioCtx = new AudioCtxClass();
-
-    masterGain = audioCtx.createGain();
-    masterGain.gain.setValueAtTime(0.7, audioCtx.currentTime);
-    masterGain.connect(audioCtx.destination);
-
-    // Sub-bass drone (43.65 Hz)
-    subGain = audioCtx.createGain();
-    subGain.gain.setValueAtTime(0.18, audioCtx.currentTime);
-
-    const filter = audioCtx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(75, audioCtx.currentTime);
-
-    subOsc = audioCtx.createOscillator();
-    subOsc.type = 'sine';
-    subOsc.frequency.setValueAtTime(43.65, audioCtx.currentTime);
-    subOsc.connect(filter);
-    filter.connect(subGain);
-    subGain.connect(masterGain);
-    subOsc.start();
-  } catch (e) {}
-}
-
-function playSubDrop() {
-  if (!audioCtx || isMuted) return;
-  try {
-    const now = audioCtx.currentTime;
-    const osc = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(120, now);
-    osc.frequency.exponentialRampToValueAtTime(32, now + 0.8);
-    g.gain.setValueAtTime(0.85, now);
-    g.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
-    osc.connect(g);
-    g.connect(masterGain);
-    osc.start(now);
-    osc.stop(now + 0.9);
-  } catch (e) {}
-}
-
-function playBladeWhoosh(spd) {
-  if (!audioCtx || isMuted) return;
-  try {
-    const now = audioCtx.currentTime;
-    const dur = 0.22;
-    const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * dur, audioCtx.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    const src = audioCtx.createBufferSource();
-    src.buffer = buf;
-    const fil = audioCtx.createBiquadFilter();
-    fil.type = 'bandpass';
-    fil.frequency.setValueAtTime(250 + Math.min(spd * 500, 1000), now);
-    fil.frequency.exponentialRampToValueAtTime(140, now + dur);
-    const g = audioCtx.createGain();
-    g.gain.setValueAtTime(0.3, now);
-    g.gain.exponentialRampToValueAtTime(0.001, now + dur);
-    src.connect(fil);
-    fil.connect(g);
-    g.connect(masterGain);
-    src.start(now);
-  } catch (e) {}
-}
-
-function playChime(idx) {
-  if (!audioCtx || isMuted) return;
-  try {
-    const now = audioCtx.currentTime;
-    const notes = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
-    const osc = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(notes[idx % notes.length], now);
-    g.gain.setValueAtTime(0.35, now);
-    g.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-    osc.connect(g);
-    g.connect(masterGain);
-    osc.start(now);
-    osc.stop(now + 0.55);
-  } catch (e) {}
-}
-
-document.addEventListener('click', initAudio, { once: true });
-document.addEventListener('touchstart', initAudio, { once: true });
-
-document.getElementById('btn-audio').addEventListener('click', () => {
-  initAudio();
-  isMuted = !isMuted;
-  if (masterGain && audioCtx) {
-    masterGain.gain.setValueAtTime(isMuted ? 0 : 0.7, audioCtx.currentTime);
-  }
-  document.getElementById('btn-audio').textContent = isMuted ? '🔇 Muted' : '🔊 Bass On';
-});
-
-// 3. THREE.JS SETUP & BLACK HOLE
+// Three.js Scene & Camera
 const canvas = document.getElementById('scene');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.autoClear = false;
-renderer.setClearColor(0x000000, 1);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x000000);
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(0, 0, 8.5);
 
-const camera = new THREE.PerspectiveCamera(window.innerWidth < window.innerHeight ? 68 : 50, window.innerWidth / window.innerHeight, 0.1, 200);
-camera.position.set(0, 0, 9.2);
+// Gargantua Realistic Black Hole
+function createAccretionTexture() {
+  const s = 512, c = document.createElement('canvas');
+  c.width = c.height = s;
+  const ctx = c.getContext('2d'), cx = s / 2, cy = s / 2;
+  const rGrad = ctx.createRadialGradient(cx, cy, s * 0.14, cx, cy, s * 0.49);
+  rGrad.addColorStop(0, 'rgba(0,0,0,0)');
+  rGrad.addColorStop(0.1, 'rgba(255,255,255,1.0)');
+  rGrad.addColorStop(0.35, 'rgba(255,200,120,0.95)');
+  rGrad.addColorStop(0.65, 'rgba(255,100,20,0.6)');
+  rGrad.addColorStop(0.92, 'rgba(60,10,2,0.15)');
+  rGrad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = rGrad;
+  ctx.fillRect(0, 0, s, s);
 
-let VIEW_W = 8, VIEW_H = 6;
-function updateViewBounds() {
-  const vFOV = THREE.MathUtils.degToRad(camera.fov);
-  VIEW_H = 2 * Math.tan(vFOV / 2) * camera.position.z;
-  VIEW_W = VIEW_H * camera.aspect;
+  const aGrad = ctx.createConicGradient(-Math.PI / 2, cx, cy);
+  aGrad.addColorStop(0.0, 'rgba(255,255,255,1.0)');
+  aGrad.addColorStop(0.35, 'rgba(210,190,170,0.85)');
+  aGrad.addColorStop(0.7, 'rgba(70,40,30,0.3)');
+  aGrad.addColorStop(1.0, 'rgba(255,255,255,1.0)');
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.fillStyle = aGrad;
+  ctx.fillRect(0, 0, s, s);
+  return new THREE.CanvasTexture(c);
 }
-updateViewBounds();
 
-// Motion-blur fade pass
-const fadeScene = new THREE.Scene();
-const fadeCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-fadeScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2, depthTest: false, depthWrite: false })));
-
-// BLACK HOLE 3D
 const blackHole = new THREE.Group();
 blackHole.position.set(0, 0.2, -5.5);
+blackHole.add(new THREE.Mesh(new THREE.SphereGeometry(1.4, 64, 64), new THREE.MeshBasicMaterial({ color: 0x000000 })));
 
-// Event Horizon
-blackHole.add(new THREE.Mesh(new THREE.SphereGeometry(1.35, 48, 48), new THREE.MeshBasicMaterial({ color: 0x000000 })));
-
-// Photon Ring
-const prMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(THEMES[0].a), side: THREE.DoubleSide, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
-const photonRing = new THREE.Mesh(new THREE.RingGeometry(1.36, 1.52, 80), prMat);
+const prMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(THEMES[0].a), side: THREE.DoubleSide, transparent: true, opacity: 0.98, blending: THREE.AdditiveBlending, depthWrite: false });
+const photonRing = new THREE.Mesh(new THREE.RingGeometry(1.41, 1.55, 100), prMat);
 blackHole.add(photonRing);
 
-// Accretion Disk
-const ACCRETION_N = 650;
-const accGeo = new THREE.BufferGeometry();
-const accPos = new Float32Array(ACCRETION_N * 3);
-const accRadii = new Float32Array(ACCRETION_N);
-const accAngles = new Float32Array(ACCRETION_N);
-const accSpeeds = new Float32Array(ACCRETION_N);
+const accTexture = createAccretionTexture();
+const diskMat = new THREE.MeshBasicMaterial({ map: accTexture, side: THREE.DoubleSide, transparent: true, opacity: 0.92, blending: THREE.AdditiveBlending, depthWrite: false, color: new THREE.Color(THEMES[0].a) });
+const eqDisk = new THREE.Mesh(new THREE.RingGeometry(1.48, 4.4, 96), diskMat);
+eqDisk.rotation.x = Math.PI * 0.44;
+blackHole.add(eqDisk);
 
-for (let i = 0; i < ACCRETION_N; i++) {
-  const r = 1.45 + Math.pow(Math.random(), 1.5) * 3.2;
-  const a = Math.random() * Math.PI * 2;
-  accRadii[i] = r;
-  accAngles[i] = a;
-  accSpeeds[i] = 1.6 / Math.sqrt(r);
-  accPos[i*3] = Math.cos(a) * r;
-  accPos[i*3+1] = (Math.random() - 0.5) * (0.12 + r * 0.04);
-  accPos[i*3+2] = Math.sin(a) * r;
-}
-accGeo.setAttribute('position', new THREE.BufferAttribute(accPos, 3));
-const accDisk = new THREE.Points(accGeo, new THREE.PointsMaterial({ color: 0xffeebb, size: 0.08, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }));
-accDisk.rotation.x = Math.PI * 0.28;
-accDisk.rotation.z = Math.PI * 0.08;
-blackHole.add(accDisk);
+const topLensMat = new THREE.MeshBasicMaterial({ map: accTexture, side: THREE.DoubleSide, transparent: true, opacity: 0.88, blending: THREE.AdditiveBlending, depthWrite: false, color: new THREE.Color(THEMES[0].b) });
+const topLens = new THREE.Mesh(new THREE.RingGeometry(1.46, 3.8, 96, 1, 0, Math.PI), topLensMat);
+topLens.rotation.x = -Math.PI * 0.08;
+blackHole.add(topLens);
+
+const btmLensMat = new THREE.MeshBasicMaterial({ map: accTexture, side: THREE.DoubleSide, transparent: true, opacity: 0.88, blending: THREE.AdditiveBlending, depthWrite: false, color: new THREE.Color(THEMES[0].b) });
+const btmLens = new THREE.Mesh(new THREE.RingGeometry(1.46, 3.8, 96, 1, Math.PI, Math.PI), btmLensMat);
+btmLens.rotation.x = Math.PI * 0.08;
+blackHole.add(btmLens);
+
 scene.add(blackHole);
 
-// BINTANG BERJALAN
+// Stars
 const STAR_COUNT = 750;
 const starGeo = new THREE.BufferGeometry();
 const starPos = new Float32Array(STAR_COUNT * 3);
@@ -606,64 +171,74 @@ for (let i = 0; i < STAR_COUNT; i++) {
   starSpeeds[i] = 0.08 + Math.random() * 0.22;
 }
 starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xc8d6ff, size: 0.065, transparent: true, opacity: 0.7, sizeAttenuation: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xc8d6ff, size: 0.065, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false }));
 scene.add(stars);
 
-// 4. TEKSTUR PEDANG & PARTIKEL
+// Sharp Sword Texture
 function createSwordTexture() {
-  const s = 128;
-  const c = document.createElement('canvas');
+  const s = 256, c = document.createElement('canvas');
   c.width = c.height = s;
   const ctx = c.getContext('2d');
-  ctx.translate(s/2, s/2);
+  ctx.translate(s / 2, s / 2);
 
-  const grad = ctx.createLinearGradient(0, -s * 0.47, 0, s * 0.3);
-  grad.addColorStop(0, 'rgba(255,255,255,1)');
-  grad.addColorStop(0.55, 'rgba(255,255,255,0.95)');
-  grad.addColorStop(1, 'rgba(255,255,255,0.1)');
-  ctx.fillStyle = grad;
+  const glow = ctx.createRadialGradient(0, -s * 0.08, s * 0.04, 0, -s * 0.08, s * 0.48);
+  glow.addColorStop(0, 'rgba(255,255,255,0.4)');
+  glow.addColorStop(0.35, 'rgba(255,255,255,0.15)');
+  glow.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(-s * 0.4, -s * 0.5, s * 0.8, s);
+
+  const blade = ctx.createLinearGradient(0, -s * 0.48, 0, s * 0.22);
+  blade.addColorStop(0, 'rgba(255,255,255,1)');
+  blade.addColorStop(0.5, 'rgba(240,250,255,0.96)');
+  blade.addColorStop(1, 'rgba(180,220,255,0.85)');
+  ctx.fillStyle = blade;
   ctx.beginPath();
-  ctx.moveTo(0, -s * 0.47);
-  ctx.lineTo(s * 0.065, -s * 0.02);
-  ctx.lineTo(s * 0.028, s * 0.26);
-  ctx.lineTo(-s * 0.028, s * 0.26);
-  ctx.lineTo(-s * 0.065, -s * 0.02);
+  ctx.moveTo(0, -s * 0.48);
+  ctx.lineTo(s * 0.038, -s * 0.38);
+  ctx.lineTo(s * 0.032, s * 0.2);
+  ctx.lineTo(s * 0.02, s * 0.22);
+  ctx.lineTo(-s * 0.02, s * 0.22);
+  ctx.lineTo(-s * 0.032, s * 0.2);
+  ctx.lineTo(-s * 0.038, -s * 0.38);
   ctx.closePath();
   ctx.fill();
 
-  ctx.fillStyle = 'rgba(255,255,255,0.95)';
-  ctx.fillRect(-s * 0.15, s * 0.22, s * 0.30, s * 0.032);
-  ctx.fillRect(-s * 0.018, s * 0.25, s * 0.036, s * 0.14);
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath(); ctx.moveTo(0, -s * 0.46); ctx.lineTo(0, s * 0.2); ctx.stroke();
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(-s * 0.12, s * 0.21, s * 0.24, s * 0.026);
+  ctx.fillRect(-s * 0.013, s * 0.24, s * 0.026, s * 0.14);
+
   return new THREE.CanvasTexture(c);
 }
 
-const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent) || window.innerWidth < 768;
-const PARTICLE_COUNT = isMobile ? 750 : 1250;
-const GRID_COLS = 25;
-const GRID_ROWS = Math.max(2, Math.ceil(PARTICLE_COUNT / GRID_COLS));
+const PARTICLE_COUNT = 900;
 const swordTexture = createSwordTexture();
-
 const particleMaterial = new THREE.ShaderMaterial({
   uniforms: { uTexture: { value: swordTexture } },
-  transparent: true,
-  depthWrite: false,
-  blending: THREE.AdditiveBlending,
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
   vertexShader: `
-    attribute float aSize;
-    attribute vec3 aColor;
-    varying vec3 vColor;
+    attribute float aSize; attribute vec3 aColor; attribute float aAngle;
+    varying vec3 vColor; varying float vAngle;
     void main() {
-      vColor = aColor;
+      vColor = aColor; vAngle = aAngle;
       vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-      gl_PointSize = aSize * (350.0 / -mvPosition.z);
+      gl_PointSize = aSize * (360.0 / -mvPosition.z);
       gl_Position = projectionMatrix * mvPosition;
     }
   `,
   fragmentShader: `
     uniform sampler2D uTexture;
-    varying vec3 vColor;
+    varying vec3 vColor; varying float vAngle;
     void main() {
-      vec4 tex = texture2D(uTexture, gl_PointCoord);
+      vec2 p = gl_PointCoord - vec2(0.5);
+      float c = cos(vAngle); float s = sin(vAngle);
+      vec2 rot = vec2(c * p.x - s * p.y, s * p.x + c * p.y) + vec2(0.5);
+      if (rot.x < 0.0 || rot.x > 1.0 || rot.y < 0.0 || rot.y > 1.0) discard;
+      vec4 tex = texture2D(uTexture, rot);
       if (tex.a < 0.03) discard;
       gl_FragColor = vec4(vColor * tex.rgb, tex.a);
     }
@@ -674,11 +249,10 @@ const positions = new Float32Array(PARTICLE_COUNT * 3);
 const velocities = new Float32Array(PARTICLE_COUNT * 3);
 const colorsAttr = new Float32Array(PARTICLE_COUNT * 3);
 const sizesAttr = new Float32Array(PARTICLE_COUNT);
+const swordAngles = new Float32Array(PARTICLE_COUNT);
 const seeds = new Float32Array(PARTICLE_COUNT);
 const angles = new Float32Array(PARTICLE_COUNT);
 const radii = new Float32Array(PARTICLE_COUNT);
-const thetas = new Float32Array(PARTICLE_COUNT);
-const phis = new Float32Array(PARTICLE_COUNT);
 const colorMix = new Float32Array(PARTICLE_COUNT);
 const baseSize = new Float32Array(PARTICLE_COUNT);
 
@@ -686,10 +260,9 @@ for (let i = 0; i < PARTICLE_COUNT; i++) {
   seeds[i] = Math.random() * 1000;
   angles[i] = Math.random() * Math.PI * 2;
   radii[i] = 0.55 + Math.random() * 2.8;
-  thetas[i] = Math.acos(2 * Math.random() - 1);
-  phis[i] = Math.random() * Math.PI * 2;
   colorMix[i] = Math.random();
-  baseSize[i] = 0.55 + Math.random() * 0.95;
+  baseSize[i] = 0.65 + Math.random() * 1.1;
+  swordAngles[i] = Math.random() * Math.PI * 2;
   positions[i*3] = (Math.random() - 0.5) * 8;
   positions[i*3+1] = (Math.random() - 0.5) * 6;
   positions[i*3+2] = (Math.random() - 0.5) * 4;
@@ -700,242 +273,82 @@ const pGeo = new THREE.BufferGeometry();
 pGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 pGeo.setAttribute('aColor', new THREE.BufferAttribute(colorsAttr, 3));
 pGeo.setAttribute('aSize', new THREE.BufferAttribute(sizesAttr, 1));
+pGeo.setAttribute('aAngle', new THREE.BufferAttribute(swordAngles, 1));
 const swarm = new THREE.Points(pGeo, particleMaterial);
 scene.add(swarm);
 
-// 5. KERANGKA TANGAN NEON & CINCIN PORTAL
-const HAND_CONNECTIONS = [
-  [0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],
-  [9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]
-];
-const lineGeo = new THREE.BufferGeometry();
-lineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(HAND_CONNECTIONS.length * 6), 3));
-const skeleton = new THREE.LineSegments(lineGeo, new THREE.LineBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.9 }));
-skeleton.visible = false;
-scene.add(skeleton);
-
-const ringMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(THEMES[0].b), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
-const ring = new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.035, 16, 80), ringMat);
-scene.add(ring);
-
-// 6. PELACAKAN TANGAN & DETEKSI GESTUR
-const video = document.getElementById('input-video');
-const startHint = document.getElementById('start-hint');
-const statusDot = document.getElementById('status-dot');
-const statusState = document.getElementById('status-state');
-const statusGesture = document.getElementById('status-gesture');
-
-let activeGesture = 'none';
-let isColorPickerOpen = false;
-let colorSlideProgress = 0;
-let isCosmicMode = false;
-let handVelocity = { x: 0, y: 0 };
-let lastHandPos = null;
-let currentLandmarks = null;
-
-function dist(p1, p2) {
-  const dx = p1.x - p2.x, dy = p1.y - p2.y, dz = (p1.z||0) - (p2.z||0);
-  return Math.sqrt(dx*dx + dy*dy + dz*dz);
-}
-function isExt(tip, pip, wrist) {
-  return dist(tip, wrist) > dist(pip, wrist) * 1.15;
-}
-
-function onResults(results) {
-  if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-    if (startHint) startHint.classList.add('is-hidden');
-    statusDot.classList.add('live');
-    statusState.textContent = 'Tangan Terdeteksi';
-
-    const lm = results.multiHandLandmarks[0];
-    currentLandmarks = lm;
-    skeleton.visible = true;
-
-    // Hitung momentum kecepatan tangan untuk suara whoosh & lemparan pedang
-    const curPos = { x: lm[0].x, y: lm[0].y };
-    if (lastHandPos) {
-      handVelocity.x = (curPos.x - lastHandPos.x) * 20;
-      handVelocity.y = (curPos.y - lastHandPos.y) * 20;
-      const spd = Math.hypot(handVelocity.x, handVelocity.y);
-      if (spd > 0.38) playBladeWhoosh(spd);
-    }
-    lastHandPos = curPos;
-
-    // Analisis Gestur
-    const wrist = lm[0];
-    const thumbTip = lm[4], thumbIp = lm[3], thumbMcp = lm[2];
-    const indexTip = lm[8], indexPip = lm[6];
-    const midTip = lm[12], midPip = lm[10];
-    const ringTip = lm[16], ringPip = lm[14];
-    const pinkyTip = lm[20], pinkyPip = lm[18];
-
-    const thumbExt = dist(thumbTip, wrist) > dist(thumbMcp, wrist) * 1.05;
-    const indexExt = isExt(indexTip, indexPip, wrist);
-    const midExt = isExt(midTip, midPip, wrist);
-    const ringExt = isExt(ringTip, ringPip, wrist);
-    const pinkyExt = isExt(pinkyTip, pinkyPip, wrist);
-    const otherCurled = !indexExt && !midExt && !ringExt && !pinkyExt;
-
-    const thumbUp = thumbTip.y < thumbIp.y - 0.02 && thumbIp.y < thumbMcp.y;
-    const thumbDown = thumbTip.y > thumbIp.y + 0.02 && thumbIp.y > thumbMcp.y - 0.05;
-
-    // GESTUR 1: JEMPOL KE BAWAH (PILIH WARNA & SLIDE)
-    if (thumbDown && otherCurled && thumbExt) {
-      activeGesture = 'thumbs_down';
-      isColorPickerOpen = true;
-      colorSlideProgress = Math.max(0, Math.min(1, (1.0 - wrist.x - 0.15) / 0.70));
-      const targetIdx = Math.min(THEMES.length - 1, Math.floor(colorSlideProgress * THEMES.length));
-      if (targetIdx !== currentThemeIdx) {
-        selectTheme(targetIdx);
-        playChime(targetIdx);
-      }
-      statusGesture.textContent = 'Jempol Bawah — Geser Pilih Warna';
-    }
-    // GESTUR 2: JEMPOL KE ATAS (ANGKASA & SUPERNOVA)
-    else if (thumbUp && otherCurled && thumbExt) {
-      if (!isCosmicMode) playSubDrop();
-      activeGesture = 'thumbs_up';
-      isCosmicMode = true;
-      statusGesture.textContent = 'Jempol Atas — Angkasa & Supernova';
-    }
-    // GESTUR 3: TANDA V (PEACE)
-    else if (indexExt && midExt && !ringExt && !pinkyExt) {
-      activeGesture = 'peace';
-      statusGesture.textContent = 'Tanda V — Hujan Pedang';
-    }
-    // GESTUR 4: TANDA ROCK
-    else if (indexExt && !midExt && !ringExt && pinkyExt) {
-      activeGesture = 'rock';
-      statusGesture.textContent = 'Tanda Rock — Bola Anyaman';
-    }
-    // GESTUR 5: KEPALAN TANGAN
-    else if (!indexExt && !midExt && !ringExt && !pinkyExt) {
-      if (isCosmicMode) playSubDrop();
-      activeGesture = 'fist';
-      isCosmicMode = false;
-      isColorPickerOpen = false;
-      statusGesture.textContent = 'Kepalan — Singularitas Portal';
-    }
-    // GESTUR 6: TELAPAK TERBUKA
-    else if (indexExt && midExt && ringExt && pinkyExt) {
-      activeGesture = 'open_palm';
-      isColorPickerOpen = false;
-      statusGesture.textContent = 'Telapak Terbuka — Ledakan Cincin';
-    }
-    // DEFAULT: KAWANAN MENGALIR
-    else {
-      activeGesture = 'flow';
-      statusGesture.textContent = 'Kawanan Mengalir';
-    }
-
-    // Update UI HUD Pilihan Warna
-    const colorHud = document.getElementById('color-hud');
-    const hudFill = document.getElementById('hud-fill');
-    if (isColorPickerOpen) {
-      colorHud.classList.add('active');
-      hudFill.style.width = (colorSlideProgress * 100) + '%';
-    } else {
-      colorHud.classList.remove('active');
-    }
-
-  } else {
-    currentLandmarks = null;
-    skeleton.visible = false;
-    statusDot.classList.remove('live');
-    statusState.textContent = 'Mencari tangan…';
-    statusGesture.textContent = 'Arahkan tangan ke kamera';
-    if (startHint) startHint.classList.remove('is-hidden');
-  }
-}
-
-const hands = new Hands({
-  locateFile: (file) => 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/' + file
-});
-hands.setOptions({
-  maxNumHands: 1,
-  modelComplexity: 1,
-  minDetectionConfidence: 0.6,
-  minTrackingConfidence: 0.6
-});
-hands.onResults(onResults);
-
-let facingMode = 'user';
-let cameraInstance = null;
-function startCamera() {
-  if (cameraInstance) cameraInstance.stop();
-  cameraInstance = new Camera(video, {
-    onFrame: async () => { await hands.send({ image: video }); },
-    width: 640,
-    height: 480,
-    facingMode: facingMode
-  });
-  cameraInstance.start();
-}
-startCamera();
-
-// Flip kamera (depan / belakang)
-document.getElementById('btn-flip').addEventListener('click', () => {
-  facingMode = facingMode === 'user' ? 'environment' : 'user';
-  startCamera();
-});
-
-// Layar penuh
-document.getElementById('btn-fs').addEventListener('click', () => {
-  if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-  else document.exitFullscreen();
-});
-
-// Toggle legenda
-document.getElementById('legend-toggle').addEventListener('click', () => {
-  const leg = document.getElementById('legend');
-  leg.hidden = !leg.hidden;
-});
-
-// 7. GANTI TEMA WARNA
+// Theme Switcher
 function selectTheme(idx) {
   currentThemeIdx = idx;
   const t = THEMES[idx];
-  document.documentElement.style.setProperty('--accent-a', t.a);
-  document.documentElement.style.setProperty('--accent-b', t.b);
   photonRing.material.color.set(t.a);
-  ringMat.color.set(t.b);
-  document.querySelectorAll('.theme-swatch').forEach((s, i) => {
-    s.classList.toggle('active', i === idx);
-  });
+  diskMat.color.set(t.a);
+  topLensMat.color.set(t.b);
+  btmLensMat.color.set(t.b);
   document.querySelectorAll('.color-hud__swatch').forEach((s, i) => {
     s.classList.toggle('selected', i === idx);
   });
 }
 
-// Pasang Swatches di HUD
-const swatchRow = document.getElementById('theme-row');
 const hudSwatches = document.getElementById('hud-swatches');
 THEMES.forEach((t, idx) => {
-  const btn = document.createElement('button');
-  btn.className = 'theme-swatch' + (idx === 0 ? ' active' : '');
-  btn.style.background = 'linear-gradient(135deg, ' + t.a + ', ' + t.b + ')';
-  btn.onclick = () => { selectTheme(idx); playChime(idx); };
-  swatchRow.appendChild(btn);
-
-  const hBtn = document.createElement('button');
-  hBtn.className = 'color-hud__swatch' + (idx === 0 ? ' selected' : '');
-  hBtn.style.background = 'linear-gradient(135deg, ' + t.a + ', ' + t.b + ')';
-  hBtn.onclick = () => { selectTheme(idx); playChime(idx); };
-  hudSwatches.appendChild(hBtn);
+  const b = document.createElement('button');
+  b.className = 'color-hud__swatch' + (idx === 0 ? ' selected' : '');
+  b.style.background = `linear-gradient(135deg, ${t.a}, ${t.b})`;
+  b.onclick = () => selectTheme(idx);
+  hudSwatches.appendChild(b);
 });
 
-// 8. LOOP ANIMASI UTAMA TIGA DIMENSI
+// Gesture & Hands Tracking
+let activeGesture = 'none';
+let anchor = new THREE.Vector3(0, 0, 0);
+
+function onResults(results) {
+  if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+    const lm = results.multiHandLandmarks[0];
+    anchor.set((0.5 - lm[9].x) * 7.5, (0.5 - lm[9].y) * 5.5, -(lm[9].z || 0) * 8);
+
+    // Deteksi Jempol ke Bawah (Thumb Down)
+    const isThumbDown = lm[4].y > lm[3].y && lm[3].y > lm[2].y && lm[8].y < lm[6].y;
+    if (isThumbDown) {
+      activeGesture = 'thumbs_down';
+      document.getElementById('color-hud').classList.add('active');
+      const normX = Math.max(0, Math.min(1, lm[4].x));
+      const targetIdx = Math.floor(normX * THEMES.length);
+      if (targetIdx !== currentThemeIdx && targetIdx >= 0 && targetIdx < THEMES.length) {
+        selectTheme(targetIdx);
+      }
+    } else {
+      activeGesture = 'none';
+      document.getElementById('color-hud').classList.remove('active');
+    }
+  } else {
+    document.getElementById('color-hud').classList.remove('active');
+  }
+}
+
+const video = document.getElementById('input-video');
+const pipVideo = document.getElementById('pip-video');
+const hands = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
+hands.onResults(onResults);
+
+const cameraMP = new Camera(video, {
+  onFrame: async () => { await hands.send({ image: video }); },
+  width: 640, height: 480
+});
+cameraMP.start();
+
+navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } }).then(s => {
+  pipVideo.srcObject = s;
+});
+
+// Animation Loop
 const clock = new THREE.Clock();
-const anchorSmooth = new THREE.Vector3(0, 0.2, 0);
-const anchorRaw = new THREE.Vector3();
 const targetPos = new THREE.Vector3();
 const colorA = new THREE.Color(THEMES[0].a);
 const colorB = new THREE.Color(THEMES[0].b);
 const tempCol = new THREE.Color();
-
-function mapToWorld(lm) {
-  return new THREE.Vector3((0.5 - lm.x) * VIEW_W * 0.92, (0.5 - lm.y) * VIEW_H * 0.92, -(lm.z||0) * 8);
-}
 
 function animate() {
   requestAnimationFrame(animate);
@@ -944,102 +357,38 @@ function animate() {
   colorA.lerp(new THREE.Color(THEMES[currentThemeIdx].a), 0.08);
   colorB.lerp(new THREE.Color(THEMES[currentThemeIdx].b), 0.08);
 
-  // Update Titik Tangan (Anchor)
-  if (currentLandmarks && currentLandmarks.length >= 21) {
-    anchorRaw.copy(mapToWorld(currentLandmarks[9] || currentLandmarks[0]));
-    anchorSmooth.lerp(anchorRaw, 0.2);
-
-    // Render garis kerangka neon tangan
-    const lp = lineGeo.attributes.position.array;
-    HAND_CONNECTIONS.forEach(([a, b], idx) => {
-      const p1 = mapToWorld(currentLandmarks[a]);
-      const p2 = mapToWorld(currentLandmarks[b]);
-      lp[idx*6] = p1.x; lp[idx*6+1] = p1.y; lp[idx*6+2] = p1.z;
-      lp[idx*6+3] = p2.x; lp[idx*6+4] = p2.y; lp[idx*6+5] = p2.z;
-    });
-    lineGeo.attributes.position.needsUpdate = true;
-    skeleton.material.color.copy(colorA);
-  } else {
-    anchorSmooth.lerp(new THREE.Vector3(0, 0.2, 0), 0.05);
-  }
-
-  // Black hole accretion disk
-  const accP = accGeo.attributes.position.array;
-  for (let i = 0; i < ACCRETION_N; i++) {
-    accAngles[i] += accSpeeds[i] * 0.015;
-    accP[i*3] = Math.cos(accAngles[i]) * accRadii[i];
-    accP[i*3+2] = Math.sin(accAngles[i]) * accRadii[i];
-  }
-  accGeo.attributes.position.needsUpdate = true;
   blackHole.rotation.y = time * 0.06;
+  eqDisk.rotation.z = time * 0.12;
   photonRing.scale.setScalar(1.0 + 0.025 * Math.sin(time * 3.0));
 
-  // Bintang berjalan
-  const sPos = starGeo.attributes.position.array;
-  const speedMul = isCosmicMode ? 5.5 : 1.0;
-  for (let i = 0; i < STAR_COUNT; i++) {
-    sPos[i*3+2] += starSpeeds[i] * speedMul;
-    if (sPos[i*3+2] > 9.5) {
-      sPos[i*3+2] = -50 - Math.random() * 15;
-      sPos[i*3+2] = -50 - Math.random() * 15;
-      sPos[i*3] = (Math.random() - 0.5) * 44;
-      sPos[i*3+1] = (Math.random() - 0.5) * 32;
-    }
-  }
-  starGeo.attributes.position.needsUpdate = true;
-
-  // Fisika & Formasi Kawanan Pedang
+  // Update Partikel Pedang
   const pPos = pGeo.attributes.position.array;
   const pCol = pGeo.attributes.aColor.array;
-  const pSiz = pGeo.attributes.aSize.array;
-  const spring = isCosmicMode ? 0.15 : 0.12;
-
   for (let i = 0; i < PARTICLE_COUNT; i++) {
     const s = seeds[i];
     if (activeGesture === 'thumbs_down') {
-      const ratio = i / PARTICLE_COUNT;
-      const arc = (ratio - 0.5) * Math.PI * 1.6 + (colorSlideProgress - 0.5) * Math.PI * 0.8;
-      const r = 2.2 + (s % 10) * 0.08;
-      targetPos.set(anchorSmooth.x + Math.cos(arc) * r, anchorSmooth.y + 0.8 + Math.sin(arc) * (r * 0.4), anchorSmooth.z + Math.sin(ratio * 12 + time) * 0.4);
-      pSiz[i] = baseSize[i] * 1.25;
-    } else if (activeGesture === 'thumbs_up') {
-      const spAng = (i / PARTICLE_COUNT) * Math.PI * 12 + time * 1.5;
-      const spR = 0.9 + (i / PARTICLE_COUNT) * 5.0;
-      targetPos.set(anchorSmooth.x + Math.cos(spAng) * spR, anchorSmooth.y + 0.8 + Math.sin(spAng) * spR * 0.55, anchorSmooth.z + Math.sin(time * 2 + s) * 1.6 - 1.2);
-      pSiz[i] = baseSize[i] * 1.5;
-    } else if (activeGesture === 'peace') {
-      const col = i % GRID_COLS, row = Math.floor(i / GRID_COLS);
-      targetPos.set(anchorSmooth.x + (col / (GRID_COLS - 1) - 0.5) * 6, anchorSmooth.y + (row / (GRID_ROWS - 1)) * 5 - 0.8 + Math.sin(time * 2.2 + s) * 0.15, anchorSmooth.z + Math.sin(s * 2.7) * 0.8);
-      pSiz[i] = baseSize[i] * 0.9;
-    } else if (activeGesture === 'rock') {
-      targetPos.set(anchorSmooth.x + 1.45 * Math.sin(thetas[i]) * Math.cos(phis[i] + time * 0.65), anchorSmooth.y + 1.0 + 1.45 * Math.cos(thetas[i]), anchorSmooth.z + 1.45 * Math.sin(thetas[i]) * Math.sin(phis[i] + time * 0.65));
-      pSiz[i] = baseSize[i] * 0.95;
-    } else if (activeGesture === 'fist') {
-      const ang = angles[i] + time * 2.2, r = 0.75 + (radii[i] % 1) * 0.9;
-      targetPos.set(anchorSmooth.x + Math.cos(ang) * r, anchorSmooth.y + 0.8 + Math.sin(ang) * r * 0.35, anchorSmooth.z + Math.sin(ang * 2 + s) * 0.6);
-      pSiz[i] = baseSize[i] * 1.15;
-    } else if (activeGesture === 'open_palm') {
-      const ph = (time * 0.65 + s * 0.013) % 1.0, r = ph * 4.0, a = angles[i];
-      targetPos.set(anchorSmooth.x + Math.cos(a) * r, anchorSmooth.y + 0.8 + Math.sin(a) * r * 0.85, anchorSmooth.z + Math.sin(ph * Math.PI) * 0.8);
-      pSiz[i] = baseSize[i] * (1.1 - ph * 0.65);
+      const arc = (i / PARTICLE_COUNT - 0.5) * Math.PI * 1.6;
+      targetPos.set(anchor.x + Math.cos(arc) * 2.2, anchor.y + Math.sin(arc) * 0.9 + 0.4, anchor.z);
     } else {
-      targetPos.set(anchorSmooth.x + Math.cos(angles[i] + time * 0.5 + s) * radii[i] * 0.65, anchorSmooth.y + Math.sin(angles[i] * 1.3 + time * 0.55 + s) * radii[i] * 0.5 + 0.4, anchorSmooth.z + Math.sin(time * 0.35 + s) * 0.85);
-      pSiz[i] = baseSize[i];
+      targetPos.set(anchor.x + Math.cos(angles[i] + time * 0.5 + s) * radii[i], anchor.y + Math.sin(angles[i] * 1.3 + time * 0.55 + s) * radii[i] * 0.6, anchor.z + Math.sin(time * 0.35 + s) * 0.85);
     }
 
     const ix = i * 3;
-    const ax = (targetPos.x - pPos[ix]) * spring;
-    const ay = (targetPos.y - pPos[ix+1]) * spring;
-    const az = (targetPos.z - pPos[ix+2]) * spring;
-
-    // Akselerasi tangan instan (momentum impulse)
-    velocities[ix] = (velocities[ix] + ax + handVelocity.x * 0.05) * 0.85;
-    velocities[ix+1] = (velocities[ix+1] + ay - handVelocity.y * 0.05) * 0.85;
-    velocities[ix+2] = (velocities[ix+2] + az) * 0.85;
+    velocities[ix] = (velocities[ix] + (targetPos.x - pPos[ix]) * 0.12) * 0.85;
+    velocities[ix+1] = (velocities[ix+1] + (targetPos.y - pPos[ix+1]) * 0.12) * 0.85;
+    velocities[ix+2] = (velocities[ix+2] + (targetPos.z - pPos[ix+2]) * 0.12) * 0.85;
 
     pPos[ix] += velocities[ix];
     pPos[ix+1] += velocities[ix+1];
     pPos[ix+2] += velocities[ix+2];
+
+    const vx = velocities[ix], vy = velocities[ix+1];
+    if (vx * vx + vy * vy > 0.0001) {
+      const heading = Math.atan2(vy, vx) - Math.PI * 0.5;
+      let diff = heading - swordAngles[i];
+      diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+      swordAngles[i] += diff * 0.18;
+    }
 
     tempCol.copy(colorA).lerp(colorB, colorMix[i]).multiplyScalar(0.85 + 0.15 * Math.sin(time * 2.5 + s));
     pCol[ix] = tempCol.r; pCol[ix+1] = tempCol.g; pCol[ix+2] = tempCol.b;
@@ -1047,27 +396,21 @@ function animate() {
 
   pGeo.attributes.position.needsUpdate = true;
   pGeo.attributes.aColor.needsUpdate = true;
-  pGeo.attributes.aSize.needsUpdate = true;
+  pGeo.attributes.aAngle.needsUpdate = true;
 
-  // Cincin portal hanya saat tanda V
-  const ringTarget = activeGesture === 'peace' ? 0.85 : 0.0;
-  ringMat.opacity += (ringTarget - ringMat.opacity) * 0.08;
-  ring.position.set(anchorSmooth.x, anchorSmooth.y + 2.6, anchorSmooth.z - 0.3);
-  ring.rotation.z += 0.01;
-
-  renderer.clearDepth();
-  renderer.render(fadeScene, fadeCamera);
   renderer.render(scene, camera);
 }
 animate();
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
-  camera.fov = window.innerWidth < window.innerHeight ? 68 : 50;
   camera.updateProjectionMatrix();
-  updateViewBounds();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+document.getElementById('btn-fs').onclick = () => {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+  else document.exitFullscreen();
+};
 </script>
 </body>
 </html>
